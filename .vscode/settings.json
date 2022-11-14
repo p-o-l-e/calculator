@@ -1,0 +1,30 @@
+{
+    "files.associations": {
+        "ss_oled.h": "c",
+        "oscillator.h": "c",
+        "containers.h": "c",
+        "sequencer.h": "c",
+        "delay.h": "c",
+        "math.h": "c",
+        "utility.h": "c",
+        "chaos.h": "c",
+        "optional": "c",
+        "ostream": "c",
+        "system_error": "c",
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "random": "c",
+        "limits": "c",
+        "istream": "c",
+        "scales.h": "c",
+        "processor.h": "c",
+        "clocks.h": "c",
+        "audio_i2s.h": "c",
+        "stdlib.h": "c",
+        "cd74hc4067.h": "c",
+        "shiftregister74hc595.h": "c"
+    }
+}
