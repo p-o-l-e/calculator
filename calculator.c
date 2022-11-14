@@ -5,9 +5,10 @@
 #include "hardware/structs/clocks.h"
 #include "pico-ss-oled/include/ss_oled.h"
 #include "pico/multicore.h"
-#include "shift_register_74hc595.h"
 #include "CD74HC4067.h"
 #include "ShiftRegister74HC595-Pico/sr_common.h"
+
+
 
 #define SPI_PORT    spi0 
 
@@ -22,8 +23,6 @@
 #define OLED_HEIGHT 64
 
 ShiftRegister74HC595 sr;
-
-typedef enum RGB { R, G, B};
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
@@ -57,13 +56,25 @@ int main()
 	stdio_init_all();
 	multicore_launch_core1(core1_entry);
     bool clk = set_sys_clock_khz(133000, true);
+
+    uart_init(UART_ID, BAUD_RATE);
+    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+
     shift_register_74HC595_init(&sr, SPI_PORT, DATA_595, CLK_595, LATCH_595);
 
     gpio_set_outover(DATA_595, GPIO_OVERRIDE_INVERT); 
 
-
+    int note = 0x10;
     while (true) 
 	{
+        uart_putc_raw(UART_ID, 0x90);
+        uart_putc_raw(UART_ID, note);
+        uart_putc_raw(UART_ID, 0x70);
+
+        // uart_putc_raw(UART_ID, 0x90337F);
+        sleep_ms(500);
+
         _74HC595_set_all_low(&sr);
 
         for(int y = 0; y < 4; y++)
@@ -76,6 +87,12 @@ int main()
                 }
             }
         }
+        uart_putc_raw(UART_ID, 0x80);
+        uart_putc_raw(UART_ID, note);
+        uart_putc_raw(UART_ID, 0x70);
+        sleep_ms(500);
+        note++;
+        // uart_putc_raw(UART_ID, 0x80337F);
     }
     return 0;
 }

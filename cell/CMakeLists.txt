@@ -4,8 +4,9 @@ add_library(cell INTERFACE)
 
 target_sources(cell INTERFACE
 
-#  ${CMAKE_CURRENT_LIST_DIR}/sequencer.c
-#  ${CMAKE_CURRENT_LIST_DIR}/utility.c
+    ${CMAKE_CURRENT_LIST_DIR}/sequencer.c
+    ${CMAKE_CURRENT_LIST_DIR}/utility.c
+    ${CMAKE_CURRENT_LIST_DIR}/midi.c
 
 
 )

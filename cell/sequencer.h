@@ -1,24 +1,30 @@
 #pragma once
-#define STEPS 12
-#include <math.h>
-#include "envelope.h"
+#include <stdbool.h>
+#include "midi.h"
+#include "utility.h"
+
+#define _tracks_ 4  // Number of tracks
+#define _steps_  16 // Number of steps
+
 
 typedef struct
 {
-    ar     env;
-    int    departed;      // current time in samples
-    int    length;        // step duration in samples
-    int    current;       // current step
-    float* note;
-    float  out;
-    bool*  on;
+    uint8_t  channel;
+    uint8_t  current;       // Current step
+    uint32_t departed;      // Current time in samples
+    uint32_t length;        // Step duration in samples
+    note     data[_steps_];
 
 } sequencer;
 
-void init_sequence(sequencer* o, int l);
 
-void process_sequence(sequencer* o);
+void    init_sequence(sequencer* o, int l);
 
-float get_note(sequencer* o);
+void    loop_forward (sequencer* o);
+void    loop_backward(sequencer* o);
+void    loop_pingpong(sequencer* o);
+void    loop_random  (sequencer* o);
 
-void genRand(sequencer* o);
+
+UMP32   get_message (sequencer* o);
+note    get_note    (sequencer* o);
