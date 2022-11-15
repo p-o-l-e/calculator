@@ -25,6 +25,8 @@
         "audio_i2s.h": "c",
         "stdlib.h": "c",
         "cd74hc4067.h": "c",
-        "shiftregister74hc595.h": "c"
+        "shiftregister74hc595.h": "c",
+        "sr_common.h": "c",
+        "midi_uart.h": "c"
     }
 }

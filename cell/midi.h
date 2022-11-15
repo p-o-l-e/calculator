@@ -2,7 +2,6 @@
 #define __MIDI
 
 #include <stdint.h>
-#include "scales.h"
 
 typedef enum
 {
@@ -31,11 +30,19 @@ typedef enum
 
 typedef struct
 {
-    uint8_t status;      // MIDI Note Number
-    uint8_t msb     : 7; // Velocity
-    uint8_t lsb     : 7; // Value
-    uint8_t channel : 4; // 0-15
+    uint8_t status;      // MIDI Message
+    uint8_t msb     : 7; // MSB
+    uint8_t lsb     : 7; // LSB
 
 } mmsg;
+
+typedef struct
+{
+    uint8_t pitch;
+    uint8_t value;  // Duration (Quarter note = Beat)  (1/64 = b/16)
+    uint8_t velocity;
+
+} note;
+
 
 #endif

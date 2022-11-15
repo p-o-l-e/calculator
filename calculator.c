@@ -1,14 +1,11 @@
 #include <stdio.h>
 #include <math.h>
 #include "pico/stdlib.h"
-#include "hardware/clocks.h"
-#include "hardware/structs/clocks.h"
 #include "pico-ss-oled/include/ss_oled.h"
 #include "pico/multicore.h"
 #include "CD74HC4067.h"
 #include "ShiftRegister74HC595-Pico/sr_common.h"
-
-
+#include "interface.h"
 
 #define SPI_PORT    spi0 
 
@@ -51,6 +48,7 @@ void core1_entry()
 }
 
 
+
 int main()
 {
 	stdio_init_all();
@@ -66,33 +64,30 @@ int main()
     gpio_set_outover(DATA_595, GPIO_OVERRIDE_INVERT); 
 
     int note = 0x10;
+    for(int i = 0; i < _tracks_; i++)
+    {
+        fired[i] = true;
+    }
+
     while (true) 
 	{
-        uart_putc_raw(UART_ID, 0x90);
-        uart_putc_raw(UART_ID, note);
-        uart_putc_raw(UART_ID, 0x70);
-
-        // uart_putc_raw(UART_ID, 0x90337F);
-        sleep_ms(500);
-
-        _74HC595_set_all_low(&sr);
-
-        for(int y = 0; y < 4; y++)
+        for(int i = 0; i < 8; i++)
         {
-            for(int x = 0; x < 4; x++)
+            if(fired[i])
             {
-                for(int i = 0; i < 16; i++)
-                {
-                    pset_rgb(&sr, x, y, 200, 1200, 1600);
-                }
+                add_alarm_in_ms(o[i].timestamp[o->current][0], timer_callback[i], NULL, false);
+                fired[i] = false;
             }
         }
-        uart_putc_raw(UART_ID, 0x80);
-        uart_putc_raw(UART_ID, note);
-        uart_putc_raw(UART_ID, 0x70);
-        sleep_ms(500);
-        note++;
-        // uart_putc_raw(UART_ID, 0x80337F);
+
+
+        for (size_t i = 0; i < 8; i++)
+        {
+            set_bits(&sr, point[i]);
+            _74HC595_set_all_low(&sr);
+        }
+        
+
     }
     return 0;
 }
