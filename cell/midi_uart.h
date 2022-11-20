@@ -10,5 +10,5 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-void _send_note_on(sequencer* o);
-void _send_note_off(sequencer* o);
+void _send_note(track* o);
+void _send_note_off(track* o);

@@ -1,42 +1,42 @@
 #include "sequencer.h"
 
 
-void init_sequence(sequencer* o, int step_length)
+void track_init(track* o, uint32_t step_length)
 {
-    o->current   = 0;
-    o->bpm       = step_length * 16;
-    o->direction = 0;
-    for(int i = 0; i < _steps_; i++)
+    o->current  = 0;
+    o->mode     = 0;
+    
+    for(int i = 0; i < steps; i++)
     {
         o->data[i].pitch    = 36;
         o->data[i].velocity = 0x7F;
         o->data[i].value    = 1;
-        o->timestamp[i][0]  = step_length;
+        o->timestamp[i]     = step_length;
     }
 }
 
-void loop_forward(sequencer* o)
+void loop_forward(track* o)
 {
     o->current++;
-    if(o->current >= _steps_) o->current = 0;
+    if(o->current >= steps) o->current = 0;
 }
 
-void loop_backward(sequencer* o)
+void loop_backward(track* o)
 {
     if(o->current > 0)
     o->current--;
-    else o->current = _steps_ - 1;
+    else o->current = steps - 1;
 }
 
-void loop_pingpong(sequencer* o)
+void loop_pingpong(track* o)
 {
     static bool f;
     if(f)
     {
         o->current++;
-        if(o->current >= _steps_) 
+        if(o->current >= steps) 
         {
-            o->current = _steps_ - 2;
+            o->current = steps - 2;
             f = false;
         }
     }
@@ -52,17 +52,17 @@ void loop_pingpong(sequencer* o)
     }
 }
 
-void loop_random(sequencer* o)
+void loop_random(track* o)
 {
-    o->current  = rand_in_range(0, _steps_ - 1);
+    o->current  = rand_in_range(0, steps - 1);
 }
 
-note get_note(sequencer* o)
+note get_note(track* o)
 {
     return o->data[o->current];
 }
 
-void (*loop_sequence[])(sequencer*) = 
+void (*loop_sequence[])(track*) = 
 {
     loop_forward,
     loop_backward,
