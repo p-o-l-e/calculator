@@ -21,7 +21,10 @@ void set_bits(ShiftRegister74HC595* sr, uint16_t a)
 
 void pset(ShiftRegister74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
 {   
-    uint16_t data = ((1 << x) << (4*(c+1))) + 0b1111^(1 << y);
+    uint16_t data = 0;
+    if (c  < 3) data = ((1 << x) << (4*(c+1))) + 0b1111^(1 << y);
+    else if (c == 3) data = ((1 << x) << 12) + ((1 << x) << 8) + 0b1111^(1 << y);
+    else if (c == 4) data = ((1 << x) <<  8) + ((1 << x) << 4) + 0b1111^(1 << y); // Teal
     for(int i = 0; i < 16; i++)
     {
         _74HC595_set(sr, i, data&0b1);

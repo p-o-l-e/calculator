@@ -1,6 +1,7 @@
 #include "sequencer.h"
 
-
+////////////////////////////////////////////////////////////////////////////////////
+// Track ///////////////////////////////////////////////////////////////////////////
 void track_init(track* o, uint32_t step_length)
 {
     o->current  = 0;
@@ -11,7 +12,7 @@ void track_init(track* o, uint32_t step_length)
         o->data[i].pitch    = 36;
         o->data[i].velocity = 0x7F;
         o->data[i].value    = 1;
-        o->timestamp[i]     = step_length;
+        o->step = step_length;
     }
 }
 
@@ -69,3 +70,20 @@ void (*loop_sequence[])(track*) =
     loop_pingpong,
     loop_random
 };
+
+////////////////////////////////////////////////////////////////////////////////////
+// Sequencer ///////////////////////////////////////////////////////////////////////
+void reset_timestamp(sequencer* o, uint8_t _track, uint16_t bpm)
+{
+    o->o[_track].bpm  = bpm;
+    o->o[_track].beat = 60000/o->o[_track].bpm;
+    o->o[_track].step = o->o[_track].beat/4;
+}
+
+void sequencer_init(sequencer* o, uint16_t bpm)
+{
+    for(int i = 0; i < tracks; i++)
+    {
+        reset_timestamp(o, i, bpm);
+    }
+}

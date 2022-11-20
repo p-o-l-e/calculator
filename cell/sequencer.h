@@ -3,7 +3,7 @@
 #include "utility.h"
 #include "midi.h"
 
-#define tracks 8  // Number of tracks
+#define tracks 2  // Number of tracks
 #define steps  16 // Number of steps
 
 
@@ -15,8 +15,11 @@ typedef struct
     uint8_t  channel;   // Track channel
     uint8_t  current;   // Current step
     uint8_t  mode;      // Loop mode
-    uint64_t timestamp[steps];  // Trigger gaps
-    note     data[steps];       // Pitches
+    uint16_t bpm;       // Beats per minute
+    uint32_t beat;      // Beat length
+    uint32_t step;      // Step length
+    uint16_t triggers;  // NoteON bits
+    note     data[steps]; // Pitches
     bool     reset;     // Recount timestamp
     bool     freerun;
     bool     on;
@@ -26,8 +29,7 @@ typedef struct
 typedef struct 
 {
     track o[tracks];
-    uint16_t atom;    // Minimal step lenght
-    uint16_t bpm;     // Beats per minute
+    
 
 } sequencer;
 
@@ -48,9 +50,9 @@ extern void (*loop_sequence[])(track*);
 
 ///////////////////////////////////////////////////////////////
 // Sequencer routines /////////////////////////////////////////
-void    reset_timestamp(sequencer* o, uint8_t _track);
+void    reset_timestamp(sequencer* o, uint8_t _track, uint16_t bpm);
     
-void    esq_init(sequencer* o, uint16_t bpm);
-void    esq_run(sequencer* o);
-void    esq_stop(sequencer* o);
-void    esq_pause(sequencer* o);
+void    sequencer_init(sequencer* o, uint16_t bpm);
+void    sequencer_run(sequencer* o);
+void    sequencer_stop(sequencer* o);
+void    sequencer_pause(sequencer* o);

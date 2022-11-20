@@ -41,6 +41,7 @@ typedef struct
     uint8_t pitch;
     uint8_t value;  // Duration (Quarter note = Beat)  (1/64 = b/16)
     uint8_t velocity;
+    int32_t offset; // Time offset in ms
 
 } note;
 
