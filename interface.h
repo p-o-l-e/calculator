@@ -4,5 +4,5 @@
 #include "cell/midi_uart.h"
 
 sequencer esq;
-uint16_t point[tracks];
+uint16_t point[_tracks];
 volatile int f = 0;

@@ -243,10 +243,13 @@ void ssd1306_draw_string_with_font(ssd1306_t *p, uint32_t x, uint32_t y, uint32_
 */
 void ssd1306_draw_string(ssd1306_t *p, uint32_t x, uint32_t y, uint32_t scale, char *s);
 
-
-
+// MIT License
+// Copyright (c) 2022 Unmanned
 void ssd1306_PSET(ssd1306_t *p, uint32_t x, uint32_t y);
-void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s);
-void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s);
+void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s, bool invert);
+void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s, bool invert);
+void ssd1306_log(ssd1306_t* p, char* s, uint16_t ms, bool clr);
+
+
 
 #endif

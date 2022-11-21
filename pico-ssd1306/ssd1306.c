@@ -298,23 +298,40 @@ void ssd1306_PSET(ssd1306_t *p, uint32_t x, uint32_t y)
     p->buffer[xi+p->width*(yi>>3)]|=0x1<<(yi&0x07); // y>>3==y/8 && y&0x7==y%8
 }
 
-void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s)
+void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s, bool invert)
 {
-    for(int i = 0; i < 7; i++) // X
+    for(int i = 0; i < 8; i++) // X
     {
-        uint8_t l = gtFont[(s-32)*7 + i];
+        uint8_t l = gtFont[(s-32)*8 + i];
         for(int j = 0; j < 8; j++) // Y
         {
-            if(l&0b1) ssd1306_PSET(p, x + i, y + j);
+            if((l&0b1)!=invert) ssd1306_PSET(p, x + i, y + j);
             l>>=1;
         }
     }
 }
 
-void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s)
+void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s, bool invert)
 {
     for(int i = 0; i < strlen(s); i++)
     {
-        ssd1306_print_char(p, x + 8*i, y, s[i]);
+        ssd1306_print_char(p, x + 8*i, y, s[i], invert);
     }
+}
+
+void ssd1306_log(ssd1306_t* p, char* s, uint16_t ms, bool clr)
+{
+    static char _log_[8][16];
+    if(clr) for(int i = 0; i < 8; i++) strcpy(_log_[i], "                ");
+    ssd1306_clear(p);
+    for(int i = 0; i < 7; i++)    
+    {
+        strcpy(_log_[i], _log_[i+1]);
+        ssd1306_print_string(p, 0, i*8, _log_[i], 0);
+    }
+    strcpy(_log_[7], "                ");
+    strcpy(_log_[7], s);
+    ssd1306_print_string(p, 0, 7*8, s, 0);
+    ssd1306_show(p);
+    sleep_ms(ms);
 }

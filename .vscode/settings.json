@@ -28,6 +28,7 @@
         "shiftregister74hc595.h": "c",
         "sr_common.h": "c",
         "midi_uart.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "ssd1306.h": "c"
     }
 }
