@@ -34,15 +34,17 @@
 
 typedef struct
 {
+    note     data[_steps];
+    uint32_t beat;      // Beat length
+    uint32_t step;      // Step length
+    uint32_t atom;      // Minimal note length
+    uint16_t bpm;       // Beats per minute
     uint8_t  channel;   // Track channel
     uint8_t  steps;     // Steps count
     uint8_t  current;   // Current step
     uint8_t  mode;      // Loop mode
-    uint16_t bpm;       // Beats per minute
-    uint32_t beat;      // Beat length
-    uint32_t step;      // Step length
     bool     trigger[_steps]; // NoteON bits
-    note     data[_steps]; // Pitches
+    bool     regenerate[2]; // [0] Beat [1] Notes
     bool     reset;     // Recount timestamp
     bool     freerun;
     bool     on;

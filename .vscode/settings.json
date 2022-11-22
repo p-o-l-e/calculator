@@ -29,6 +29,8 @@
         "sr_common.h": "c",
         "midi_uart.h": "c",
         "stdint.h": "c",
-        "ssd1306.h": "c"
+        "ssd1306.h": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }

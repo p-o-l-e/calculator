@@ -19,7 +19,7 @@ typedef struct
 } gator;
 
 
-int gate(gator* o, int in, int width);
+int _gate(gator* o, int in, int width);
 
 int rand_in_range(int l, int r);
 

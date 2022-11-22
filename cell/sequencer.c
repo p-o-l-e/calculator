@@ -29,13 +29,12 @@ void track_init(track* o)
     o->current  = 0;
     o->mode     = 0;
     o->steps    = _steps;
-
-
     for(int i = 0; i < _steps; i++)
     {
         o->data[i].pitch    = 36;
         o->data[i].velocity = 0x7F;
-        o->data[i].value    = 1;
+        o->data[i].value    = 8;
+        o->data[i].offset   = 0;
     }
 }
 
@@ -101,6 +100,7 @@ void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
     o->o[track].bpm  = bpm;
     o->o[track].beat = 60000/o->o[track].bpm;
     o->o[track].step = o->o[track].beat/4;
+    o->o[track].atom = o->o[track].step/32;
 }
 
 void sequencer_init(sequencer* o, uint16_t bpm)

@@ -6,7 +6,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////
 #include "utility.h"
 
-int gate(gator* o, int in, int width)
+int _gate(gator* o, int in, int width)
 {
     if(abs(in - o->eax) > width)
     {
