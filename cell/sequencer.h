@@ -23,6 +23,7 @@
 #pragma once
 #include <stdbool.h>
 #include "utility.h"
+#include "scale.h"
 #include "midi.h"
 
 #define _tracks 2  // Number of tracks
@@ -35,6 +36,7 @@
 typedef struct
 {
     note     data[_steps];
+    scale_t  scale;
     uint32_t beat;      // Beat length
     uint32_t step;      // Step length
     uint32_t atom;      // Minimal note length
@@ -44,7 +46,7 @@ typedef struct
     uint8_t  current;   // Current step
     uint8_t  mode;      // Loop mode
     bool     trigger[_steps]; // NoteON bits
-    bool     regenerate[2]; // [0] Beat [1] Notes
+    bool     regenerate[3]; // [0] Beat [1] Notes [3] Set scale
     bool     reset;     // Recount timestamp
     bool     freerun;
     bool     on;
@@ -72,6 +74,7 @@ void    loop_backward(track* o);
 void    loop_pingpong(track* o);
 void    loop_random  (track* o);
 
+void    insert_bits  (track* o, uint16_t bits);
 note    get_note     (track* o);
 
 extern void (*loop_sequence[])(track*);
@@ -84,5 +87,6 @@ void    sequencer_init(sequencer* o, uint16_t bpm);
 void    sequencer_run(sequencer* o);
 void    sequencer_stop(sequencer* o);
 void    sequencer_pause(sequencer* o);
+void    sequencer_randomize(sequencer* o, uint8_t _track);
 
 uint32_t get_timeout(sequencer* o, uint8_t track); // Time to the next step - NULL if timeline is clear

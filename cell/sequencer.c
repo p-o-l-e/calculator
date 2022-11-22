@@ -31,7 +31,8 @@ void track_init(track* o)
     o->steps    = _steps;
     for(int i = 0; i < _steps; i++)
     {
-        o->data[i].pitch    = 36;
+        o->data[i].degree   = 0;
+        o->data[i].octave   = 3;
         o->data[i].velocity = 0x7F;
         o->data[i].value    = 8;
         o->data[i].offset   = 0;
@@ -85,6 +86,16 @@ note get_note(track* o)
     return o->data[o->current];
 }
 
+void insert_bits(track* o, uint16_t bits)
+{
+    uint16_t s = bits;
+    for(int i = _steps - 1; i >= 0; i--) 
+    {
+        o->trigger[i] = s & 1;
+        s >>= 1;
+    }
+}
+
 void (*loop_sequence[])(track*) = 
 {
     loop_forward,
@@ -124,4 +135,21 @@ uint32_t get_timeout(sequencer* o, uint8_t track)
         }
     }
     return 0;
+}
+
+void sequencer_randomize(sequencer* o, uint8_t _track)
+{
+    uint16_t beat = rand_in_range(1, 0xFFFF);
+    insert_bits(&o->o[_track], beat);
+    for(int i = 0; i < _steps; i++)
+    {
+        o->o[_track].data[i].value    = rand_in_range(0,  0xFF);
+        o->o[_track].data[i].offset   = rand_in_range(0,  0xFF);
+        o->o[_track].data[i].degree   = rand_in_range(0,    11);
+        o->o[_track].data[i].octave   = rand_in_range(0,     8);
+        o->o[_track].data[i].velocity = rand_in_range(0,  0x7F);
+        o->o[_track].scale.data       = rand_in_range(1, 0xFFF);
+        o->o[_track].scale.root       = rand_in_range(0,    11);
+        note_from_degree(&o->o[_track].scale, &o->o[_track].data[i]);
+    }
 }

@@ -104,8 +104,38 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
                 for(int i = 0; i < 16; i++)
                 {
-                    ssd1306_progress_bar(&oled, 4000, i*8 + 1, 10, 4000, 40, 6, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected_track].data[i].value, i*8 + 1, 10, 0xFF, 40, 6, true);
                 }
+                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
+                str[selected_track*2] = '\x9B';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint_display = false;
+                refresh_display = true;
+            }
+            else if(page == 2)
+            {
+                char str[16];
+                char s[1];
+                ssd1306_clear(&oled);
+
+                ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
+                ssd1306_print_string(&oled, 40,  0, chromatic[esq.o[selected_track].scale.root], 0, 0);
+                const uint8_t xs[12] = {  4,  8, 14, 18, 24, 34, 38, 44, 48, 54, 58, 64};
+                const uint8_t ys[12] = { 10,  0, 10,  0, 10, 10,  0, 10,  0, 10,  0, 10};
+                for(int i = 0; i < 12; i++)
+                {
+                    if(esq.o[selected_track].scale.data & (0x800 >> i))
+                    ssd1306_glyph(&oled, circle_glyph_f_8x8, 8, 8, xs[i] + 52, ys[i]);
+                    else
+                    ssd1306_glyph(&oled, circle_glyph_8x8, 8, 8, xs[i] + 52, ys[i]);
+
+                    ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected_track].data[i].chroma%12], 0, true);
+                    sprintf(s, "%d", esq.o[selected_track].data[i].octave);
+                    ssd1306_print_string(&oled,  6 + 10*i,  41, s, 0, true);
+
+                }
+                ssd1306_glyph(&oled, circle_glyph_r_8x8, 8, 8, xs[esq.o[selected_track].scale.root] + 52, ys[esq.o[selected_track].scale.root]);
+
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
@@ -116,8 +146,13 @@ void core1_interrupt_handler()
         if((raw & 0x80) == 0x80) // NOTE ON
         {
             uint16_t id = raw ^ 0x80;
+            if(esq.o[id].data[esq.o[id].current].recount) 
+            {
+                note_from_degree(&esq.o[id].scale, &esq.o[id].data[esq.o->current]);
+                esq.o[id].data[esq.o[id].current].recount = false;
+            }
             _send_note_on(&esq.o[id]);
-            uint8_t note_on[3] = { 0x80 | esq.o[id].channel, esq.o[id].data->pitch, esq.o[id].data->velocity };
+            uint8_t note_on[3] = { 0x80 | esq.o[id].channel, esq.o[id].data[esq.o->current].chroma, esq.o[id].data[esq.o->current].velocity };
             tud_midi_stream_write(cable_num, note_on, 3);
             // Log ///////////////////////////////////////////////////////////////////////////////////////////////
             if(page == -1)
@@ -132,7 +167,7 @@ void core1_interrupt_handler()
         {
             uint16_t id = raw ^ 0x90;
             _send_note_off(&esq.o[id]);
-            uint8_t note_off[3] = { 0x90 | esq.o[id].channel, esq.o[id].data->pitch, 0 };
+            uint8_t note_off[3] = { 0x90 | esq.o[id].channel, esq.o[id].data[esq.o->current].chroma, 0 };
             tud_midi_stream_write(cable_num, note_off, 3);
             // Log ///////////////////////////////////////////////////////////////////////////////////////////////
             if(page == -1)
@@ -171,6 +206,7 @@ int main()
     tusb_init();
 	multicore_launch_core1(core1_entry);
     int clk = set_sys_clock_khz(133000, true);
+
     ////////////////////////////////////////////////////////////////////////////////
     // OLED Init ///////////////////////////////////////////////////////////////////
     i2c_init(i2c1, 3200000);
@@ -192,24 +228,14 @@ int main()
     gpio_set_outover(DATA_595, GPIO_OVERRIDE_INVERT); 
     _74HC595_set_all_low(&sr);
     // Sequencer Init /////////////////////////////////////////////////////////
+    srand(time_us_32());
     sequencer_init(&esq, 120);
-    refresh_display = true;
-
+    sequencer_randomize(&esq, 0);
+    // refresh_display = true;
+    repaint_display = true;
     tts[0] = make_timeout_time_ms(300);
-
     
     la_init(&la, 4, 4);
-    
-    // la.field[0] = esq.o[0].trigger[0] = 1;
-    // la.field[2] = esq.o[0].trigger[2] = 1;
-    // la.field[5] = esq.o[0].trigger[5] = 1;
-    // la.field[7] = esq.o[0].trigger[7] = 1;
-    // la.field[8] = esq.o[0].trigger[8] = 1;
-    // la.field[10] = esq.o[0].trigger[10] = 1;
-    // la.field[13] = esq.o[0].trigger[13] = 1;
-    // la.field[15] = esq.o[0].trigger[15] = 1;
-
-
     ssd1306_log(&oled, "ESQ SET......", 0, 0);
     ssd1306_log(&oled, "", 0, 0);
    
@@ -217,7 +243,7 @@ int main()
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
     RUN:
     repaint_display = true;
-    page = 1;
+    page = 2;
     while (esq.state == PLAY) 
 	{
         tud_task();

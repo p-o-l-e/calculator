@@ -20,7 +20,6 @@ typedef struct
     bool field[_LA_WIDTH * _LA_HEIGHT];
     int w;
     int h;
-    int l;
     int x;
     int y;
     int pos;

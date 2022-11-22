@@ -23,6 +23,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum
 {
@@ -59,9 +60,12 @@ typedef struct
 
 typedef struct
 {
-    uint8_t pitch;
-    uint8_t value;  // Duration (Quarter note = Beat)  (1/64 = b/16)
-    uint8_t velocity;
-    int32_t offset; // Time offset in ms
+    uint8_t chroma;     // MIDI Note number
+    uint8_t degree;     // Scale degree 0 - 11
+    uint8_t octave;     // Octave 1 == Sub Contra
+    uint8_t value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
+    uint8_t velocity;   // MIDI Velocity 0-127
+    int32_t offset;     // Time offset in ms
+    bool recount;       // Set chroma flag
 
 } note;

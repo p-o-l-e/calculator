@@ -3,7 +3,7 @@
 void _send_note_on(track* o)
 {
     uart_putc_raw(UART_ID, 0x90 | o->channel);
-    uart_putc_raw(UART_ID, o->data[o->current].pitch);
+    uart_putc_raw(UART_ID, o->data[o->current].chroma);
     uart_putc_raw(UART_ID, o->data[o->current].velocity);
 }
 
@@ -11,6 +11,6 @@ void _send_note_on(track* o)
 void _send_note_off(track* o)
 {
     uart_putc_raw(UART_ID, 0x80 | o->channel);
-    uart_putc_raw(UART_ID, o->data[o->current].pitch);
+    uart_putc_raw(UART_ID, o->data[o->current].chroma);
     uart_putc_raw(UART_ID, o->data[o->current].velocity);
 }
