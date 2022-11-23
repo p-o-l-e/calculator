@@ -37,6 +37,7 @@ typedef struct
 {
     note     data[_steps];
     scale_t  scale;
+    uint32_t revolutions;
     uint32_t beat;      // Beat length
     uint32_t step;      // Step length
     uint32_t atom;      // Minimal note length

@@ -31,6 +31,8 @@
         "stdint.h": "c",
         "ssd1306.h": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "inttypes.h": "c",
+        "automata.h": "c"
     }
 }

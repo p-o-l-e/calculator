@@ -60,7 +60,8 @@ volatile absolute_time_t gts[_tracks]; // Gate OFF
 volatile bool gate[_tracks]; // OFF is pending
 
 void swith_led();
-langtons_ant la;
+volatile ant la;
+element el;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -119,22 +120,22 @@ void core1_interrupt_handler()
                 ssd1306_clear(&oled);
 
                 ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
-                ssd1306_print_string(&oled, 40,  0, chromatic[esq.o[selected_track].scale.root], 0, 0);
-                const uint8_t xs[12] = {  4,  8, 14, 18, 24, 34, 38, 44, 48, 54, 58, 64};
+                ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected_track].scale.root], 0, 0);
+                const uint8_t xs[12] = { 56, 60, 66, 70, 76, 86, 90, 96,100,106,110,116};
                 const uint8_t ys[12] = { 10,  0, 10,  0, 10, 10,  0, 10,  0, 10,  0, 10};
                 for(int i = 0; i < 12; i++)
                 {
                     if(esq.o[selected_track].scale.data & (0x800 >> i))
-                    ssd1306_glyph(&oled, circle_glyph_f_8x8, 8, 8, xs[i] + 52, ys[i]);
+                    ssd1306_glyph(&oled, circle_glyph_8x8f, 8, 8, xs[i], ys[i]);
                     else
-                    ssd1306_glyph(&oled, circle_glyph_8x8, 8, 8, xs[i] + 52, ys[i]);
+                    ssd1306_glyph(&oled, circle_glyph_8x8h, 8, 8, xs[i], ys[i]);
 
                     ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected_track].data[i].chroma%12], 0, true);
                     sprintf(s, "%d", esq.o[selected_track].data[i].octave);
                     ssd1306_print_string(&oled,  6 + 10*i,  41, s, 0, true);
 
                 }
-                ssd1306_glyph(&oled, circle_glyph_r_8x8, 8, 8, xs[esq.o[selected_track].scale.root] + 52, ys[esq.o[selected_track].scale.root]);
+                ssd1306_glyph(&oled, circle_glyph_8x8r, 8, 8, xs[esq.o[selected_track].scale.root], ys[esq.o[selected_track].scale.root]);
 
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
@@ -235,9 +236,11 @@ int main()
     repaint_display = true;
     tts[0] = make_timeout_time_ms(300);
     
-    la_init(&la, 4, 4);
+    ant_init(&la);
+    element_init(&el);
     ssd1306_log(&oled, "ESQ SET......", 0, 0);
     ssd1306_log(&oled, "", 0, 0);
+    uint32_t r = 0;
    
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
@@ -273,11 +276,19 @@ int main()
             }
         }
 
-        if(esq.o[0].regenerate[0])
+        if(r != esq.o[0].revolutions)
         {
-            la_move(&la);
+            ant_evolve(&la);
+            // evolve(&el);
             for(int i = 0; i < 16; i++) esq.o[0].trigger[i] = la.field[i];
+            // el.rule = 86;
+            // for(int i = 0; i < 4; i++) 
+            // {
+            //     for(int j = 0; j < 4; j++)
+            //     esq.o[0].trigger[i + (4*j)] = el.field[i][j];
+            // }
             esq.o[0].regenerate[0] = false;
+            r = esq.o[0].revolutions;
         }
         multicore_fifo_push_blocking(0);        
     }

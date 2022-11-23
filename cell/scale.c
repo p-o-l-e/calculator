@@ -1,16 +1,15 @@
 #include "scale.h"
 
 
-void set_scale(scale_t* scale, uint16_t gaps, uint8_t root)
+void set_scale(scale_t* scale)
 {
-    scale->data  = gaps;
-    scale->root  = root;
+    scale->data  |= (1<<(11 - scale->root));
     uint8_t s = 0;
-    for(int i = 0; i < 12; i++)
+    for(int i = scale->root; i < 12 + scale->root; i++)
     {
-        if(gaps & (0x800 >> i))
+        if(scale->data & (0x800 >> (i % 12)))
         {
-            scale->degree[s] = i;
+            scale->degree[s] = i - scale->root;
             s++;
         }
     }
@@ -24,18 +23,6 @@ void note_from_degree(scale_t* scale, note* o)
 
 
 
-const char* chromatic[] = 
-{
-    "C ",
-    "C#",
-    "D ",
-    "D#",
-    "E ",
-    "F ",
-    "F#",
-    "G ",
-    "G#",
-    "A ",
-    "A#",
-    "B "
-};
+const char* chromatic[]    = {" C","#C"," D","#D"," E"," F","#F"," G","#G"," A","#A"," B"};
+const char* chromatic_lr[] = {"C ","C#","D ","D#","E ","F ","F#","G ","G#","A ","A#","B "};
+

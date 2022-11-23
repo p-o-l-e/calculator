@@ -10,22 +10,31 @@
 #define DOWN  2
 #define LEFT  3
 
-#define _LA_WIDTH  4
-#define _LA_HEIGHT 4
-
+#define ROWS  4
+#define COLS  4
+#define LANGTONS_ANT 0b00000000010101010110110011000110
 typedef struct
 {
     int current;
+    bool field[ROWS * COLS];
+    int step[8];
+    uint32_t rule;
+    int pos[2];
 
-    bool field[_LA_WIDTH * _LA_HEIGHT];
-    int w;
-    int h;
-    int x;
-    int y;
-    int pos;
+} ant;
 
-} langtons_ant;
 
-void la_move(langtons_ant* la);
-void la_clr(langtons_ant* la);
-void la_init(langtons_ant* la, int width, int height);
+typedef struct
+{
+	uint64_t field[ROWS][COLS];
+	uint64_t rule;
+    int64_t  nbrs;
+
+} element;
+
+void element_init(element* o);
+void evolve(element* o);
+
+void ant_evolve(ant* o);
+void ant_clr(ant* o);
+void ant_init(ant* o);

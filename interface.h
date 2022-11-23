@@ -23,15 +23,8 @@ void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t 
     }
 }
 
-bool note_glyph[24] =
-{
-    0,0,1,1,1,0,
-    0,1,1,1,1,1,
-    1,1,1,1,1,0,
-    0,1,1,1,0,0
-};
 
-bool circle_glyph_8x8[] =
+const bool circle_glyph_8x8h[] =
 {
     0,0,1,1,1,1,0,0,
     0,1,0,0,0,0,1,0,
@@ -43,7 +36,7 @@ bool circle_glyph_8x8[] =
     0,0,1,1,1,1,0,0,
 };
 
-bool circle_glyph_f_8x8[] =
+const bool circle_glyph_8x8f[] =
 {
     0,0,1,1,1,1,0,0,
     0,1,0,0,0,0,1,0,
@@ -55,7 +48,7 @@ bool circle_glyph_f_8x8[] =
     0,0,1,1,1,1,0,0
 };
 
-bool circle_glyph_r_8x8[] =
+const bool circle_glyph_8x8r[] =
 {
     0,0,1,1,1,1,0,0,
     0,1,1,1,1,1,1,0,

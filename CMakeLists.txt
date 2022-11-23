@@ -44,7 +44,6 @@ target_link_libraries(calculator PRIVATE
 	hardware_i2c
 	hardware_spi
 	hardware_flash
-	#pico_ss_oled
 	SSD1306
 	littlefs
 )
