@@ -58,7 +58,7 @@ set(PICO_DEFAULT_FLOAT_IMPL pico_float_pico)
 
 target_compile_options(calculator PRIVATE
 
-    -O3
+    -Ofast
 	-march=armv6-m
 	-mcpu=cortex-m0plus
 	-mtune=cortex-m0plus

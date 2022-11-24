@@ -30,11 +30,18 @@
 
 #include "pico-ssd1306/ssd1306.h"
 #include "pico/multicore.h"
+#include "pico/util/queue.h"
 #include "CD74HC4067.h"
 #include "ShiftRegister74HC595-Pico/sr_common.h"
 #include "interface.h"
 #include "suspend.h"
 #include "cell/automata.h"
+
+// #define _MULTI_THREADED
+// #include <pthread.h>
+// pthread_t _thread;
+queue_t queue;
+
 
 #define SPI_PORT    spi0 
 #define CLOCK_595   18
@@ -60,7 +67,9 @@ volatile absolute_time_t gts[_tracks]; // Gate OFF
 volatile bool gate[_tracks]; // OFF is pending
 
 void swith_led();
-volatile ant la;
+void arm(uint32_t lag);
+void send(uint8_t id, uint8_t status);
+ant la;
 element el;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
@@ -76,9 +85,10 @@ void core1_interrupt_handler()
         }
         else if(repaint_display)
         {
-            if(page == 0)
+            char str[16];
+            switch (page)
             {
-                char str[16];
+            case 0:
                 ssd1306_clear(&oled);
 
                 sprintf(str, "BPM     : %d", esq.o[selected_track].bpm);
@@ -96,10 +106,9 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint_display = false;
                 refresh_display = true;
-            }
-            else if(page == 1)
-            {
-                char str[16];
+                break;
+            
+            case 1:
                 ssd1306_clear(&oled);
 
                 ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
@@ -112,10 +121,9 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint_display = false;
                 refresh_display = true;
-            }
-            else if(page == 2)
-            {
-                char str[16];
+                break;
+
+            case 2:
                 char s[1];
                 ssd1306_clear(&oled);
 
@@ -141,43 +149,13 @@ void core1_interrupt_handler()
                 str[selected_track*2] = '\x9B';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint_display = false;
-                refresh_display = true;;
-            }
-        }
-        if((raw & 0x80) == 0x80) // NOTE ON
-        {
-            uint16_t id = raw ^ 0x80;
-            if(esq.o[id].data[esq.o[id].current].recount) 
-            {
-                note_from_degree(&esq.o[id].scale, &esq.o[id].data[esq.o->current]);
-                esq.o[id].data[esq.o[id].current].recount = false;
-            }
-            _send_note_on(&esq.o[id]);
-            uint8_t note_on[3] = { 0x80 | esq.o[id].channel, esq.o[id].data[esq.o->current].chroma, esq.o[id].data[esq.o->current].velocity };
-            tud_midi_stream_write(cable_num, note_on, 3);
-            // Log ///////////////////////////////////////////////////////////////////////////////////////////////
-            if(page == -1)
-            {
-                char str[16];
-                sprintf(str, "ON :%02X:%02X:%02X:%02X", esq.o[selected_track].current, note_on[0], note_on[1], note_on[2]);
-                ssd1306_log(&oled, str, 0, 0);
-            }
+                refresh_display = true;
+                break;
 
-        }
-        if((raw & 0x90) == 0x90) // NOTE OFF
-        {
-            uint16_t id = raw ^ 0x90;
-            _send_note_off(&esq.o[id]);
-            uint8_t note_off[3] = { 0x90 | esq.o[id].channel, esq.o[id].data[esq.o->current].chroma, 0 };
-            tud_midi_stream_write(cable_num, note_off, 3);
-            // Log ///////////////////////////////////////////////////////////////////////////////////////////////
-            if(page == -1)
-            {
-                char str[16];
-                sprintf(str, "OFF:%02X:%02X:%02X:%02X", esq.o[selected_track].current, note_off[0], note_off[1], note_off[2]);
-                ssd1306_log(&oled, str, 0, 0);
+            default:
+                break;
             }
-        }
+        }       
         swith_led();
     }
     multicore_fifo_clear_irq(); // Clear interrupt
@@ -206,8 +184,7 @@ int main()
     board_init();
     tusb_init();
 	multicore_launch_core1(core1_entry);
-    int clk = set_sys_clock_khz(133000, true);
-
+    set_sys_clock_khz(133000, true);
     ////////////////////////////////////////////////////////////////////////////////
     // OLED Init ///////////////////////////////////////////////////////////////////
     i2c_init(i2c1, 3200000);
@@ -215,68 +192,71 @@ int main()
     gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(SDA_PIN);
     gpio_pull_up(SCL_PIN);
-    oled.external_vcc=false;
+    oled.external_vcc = false;
     ssd1306_init(&oled, 128, 64, 0x3C, i2c1);
     ssd1306_contrast(&oled, 20);
-    ssd1306_log(&oled, "CLOCK SET....", 0, true);
     // MIDI DIN Init //////////////////////////////////////////////////////////
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-    ssd1306_log(&oled, "UART SET.....", 0, 0);
     // 595 Init ///////////////////////////////////////////////////////////////
     shift_register_74HC595_init(&sr, SPI_PORT, DATA_595, CLOCK_595, LATCH_595);
     gpio_set_outover(DATA_595, GPIO_OVERRIDE_INVERT); 
     _74HC595_set_all_low(&sr);
+    ///////////////////////////////////////////////////////////////////////////
     // Sequencer Init /////////////////////////////////////////////////////////
     srand(time_us_32());
-    sequencer_init(&esq, 120);
+    sequencer_init(&esq, 40);
     sequencer_randomize(&esq, 0);
-    // refresh_display = true;
-    repaint_display = true;
-    tts[0] = make_timeout_time_ms(300);
-    
     ant_init(&la);
     element_init(&el);
-    ssd1306_log(&oled, "ESQ SET......", 0, 0);
-    ssd1306_log(&oled, "", 0, 0);
-    uint32_t r = 0;
-   
+    queue_init(&queue, sizeof(uint32_t), 32);
+    repaint_display = true;
+    page = -1;
+    uint32_t rv[_tracks]; // Revolution counters
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
     RUN:
-    repaint_display = true;
-    page = 2;
+    arm(100);
     while (esq.state == PLAY) 
 	{
         tud_task();
-        // uint16_t raw = 0;
         for(int i = 0; i < _tracks; i++)
         {
-            // NOTE ON Timings /////////////////////////////////////////////////////
+            if(esq.o[i].data[esq.o[i].current].recount) 
+            {
+                note_from_degree(&esq.o[i].scale, &esq.o[i].data[esq.o->current]);
+                esq.o[i].data[esq.o[i].current].recount = false;
+            }
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // NOTE ON Timings ////////////////////////////////////////////////////////////////////////////////////////////////////////////
             if(time_reached(tts[i]))
             {
-                tts[i] = make_timeout_time_ms(esq.o[i].step + esq.o[i].data[esq.o[i].current].offset);
-                loop_sequence[esq.o[i].mode](&esq.o[i]);
-                if(esq.o[i].trigger[esq.o[i].current]) 
+                loop_sequence[esq.o[i].mode](&esq.o[i]); // Loop to next step
+                tts[i] = make_timeout_time_ms(esq.o[i].step + esq.o[i].data[esq.o[i].current].offset); // Next step timer
+                if(esq.o[i].trigger[esq.o[i].current])  // If current step is trigger
                 {
-                    multicore_fifo_push_blocking(i + 0x80);
-                    gts[i] = make_timeout_time_ms(esq.o[i].atom * esq.o[i].data[esq.o[i].current].value);
+                    if(gate[i]) // Trigger OFF previous note to prevent overlap
+                    {
+                        send(i, 0x80);
+                        gate[i] = false;
+                    }
+                    send(i, 0x90);
+                    gts[i] = make_timeout_time_ms(esq.o[i].atom * esq.o[i].data[esq.o[i].current].value); // Create a NOTE OFF timer
                     gate[i] = true;
                 }
-                if(esq.o[0].current == 0) esq.o[0].regenerate[0] = true;
             }
             if(time_reached(gts[i]))
             {
                 if(gate[i])
                 {
-                    multicore_fifo_push_blocking(i + 0x90);
+                    send(i, 0x80);
                     gate[i] = false;
                 }
             }
         }
 
-        if(r != esq.o[0].revolutions)
+        if(rv[0] != esq.o[0].revolutions)
         {
             ant_evolve(&la);
             // evolve(&el);
@@ -288,25 +268,68 @@ int main()
             //     esq.o[0].trigger[i + (4*j)] = el.field[i][j];
             // }
             esq.o[0].regenerate[0] = false;
-            r = esq.o[0].revolutions;
+            rv[0] = esq.o[0].revolutions;
         }
         multicore_fifo_push_blocking(0);        
     }
-
     return 0;
 }
 
+
+void send(uint8_t id, uint8_t status) // Send MIDI message
+{
+    switch (status)
+    {
+    case 0x80:
+        _send_note_off(&esq.o[id]);
+        uint8_t off[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, 0 };
+        tud_midi_stream_write(cable_num, off, 3);
+        break;
+    case 0x90:
+        _send_note_on(&esq.o[id]);
+        uint8_t mm[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity };
+        tud_midi_stream_write(cable_num, mm, 3);
+        break;
+    default:
+        break;
+    }
+    if(page == -1)
+    {
+        char str[16];
+        if(status == 0x80)
+        sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+        if(status == 0x90)
+        sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+        ssd1306_log(&oled, str, 0, 0);
+    }
+}
+
+void arm(uint32_t lag) // Prepare to play routine
+{
+    int8_t f = esq.o[0].data[esq.o[0].current].offset;
+    for(int i = 1; i < _tracks; i++)
+    {
+        if(f > esq.o[i].data[esq.o[i].current].offset)
+        {
+            f = esq.o[i].data[esq.o[i].current].offset;
+        }
+    }
+    for(int i = 0; i < _tracks; i++)
+    {
+        tts[i] = make_timeout_time_ms(esq.o[i].data[esq.o[i].current].offset - f + lag);
+    }
+}
 
 void swith_led()
 {
     static uint8_t led;
     _74HC595_set_all_low(&sr);
-    if(esq.o[selected_track].trigger[led]) pset(&sr, led%4, led/4, 4);
+    if(esq.o[selected_track].trigger[led]) pset(&sr, led&3, led>>2, 4);
     led++;
     if(led > _steps) 
     {
         led = 0;
         _74HC595_set_all_low(&sr);
-        pset(&sr, esq.o[selected_track].current%4, esq.o[selected_track].current/4, 2);
+        pset(&sr, esq.o[selected_track].current&3, esq.o[selected_track].current>>2, 2);
     }
 }

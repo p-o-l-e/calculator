@@ -65,7 +65,7 @@ typedef struct
     uint8_t octave;     // Octave 1 == Sub Contra
     uint8_t value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
     uint8_t velocity;   // MIDI Velocity 0-127
-    int32_t offset;     // Time offset in ms
+    int8_t  offset;     // Time offset in ms
     bool recount;       // Set chroma flag
 
 } note;

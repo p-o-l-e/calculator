@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include "sequencer.h"
-
 ////////////////////////////////////////////////////////////////////////////////////
 // Track ///////////////////////////////////////////////////////////////////////////
 void track_init(track* o)
@@ -43,11 +42,11 @@ void track_init(track* o)
 void loop_forward(track* o)
 {
     o->current++;
-    o->revolutions++;
+    // o->revolutions++;
     if(o->current >= o->steps) 
     {
         o->current = 0;
-        // o->revolutions++;
+        o->revolutions++;
     }
 }
 
@@ -90,7 +89,14 @@ void loop_pingpong(track* o)
 
 void loop_random(track* o)
 {
+    static uint8_t r;
     o->current  = rand_in_range(0, o->steps - 1);
+    r++;
+    if(r>o->steps)
+    {
+        r = 0;
+        o->revolutions++;
+    }
 }
 
 note get_note(track* o)
@@ -136,18 +142,18 @@ void sequencer_init(sequencer* o, uint16_t bpm)
     }
 }
 
-uint32_t get_timeout(sequencer* o, uint8_t track)
-{
-    for(int i = 0; i < o->o[track].steps; i++)
-    {
-        int s = (i + o->o[track].current) % o->o[track].steps;
-        if(o->o[track].trigger[s])
-        {
-            return (i + 1) * o->o[track].step + o->o[track].data[s].offset;
-        }
-    }
-    return 0;
-}
+// uint32_t get_timeout(sequencer* o, uint8_t track)
+// {
+//     for(int i = 0; i < o->o[track].steps; i++)
+//     {
+//         int s = (i + o->o[track].current) % o->o[track].steps;
+//         if(o->o[track].trigger[s])
+//         {
+//             return (i + 1) * o->o[track].step + o->o[track].data[s].offset;
+//         }
+//     }
+//     return 0;
+// }
 
 void sequencer_randomize(sequencer* o, uint8_t _track)
 {
@@ -158,8 +164,8 @@ void sequencer_randomize(sequencer* o, uint8_t _track)
     set_scale(&o->o[_track].scale);
     for(int i = 0; i < _steps; i++)
     {
-        o->o[_track].data[i].value    = rand_in_range(0,  0xFF);
-        o->o[_track].data[i].offset   = rand_in_range(0,  0xFF);
+        o->o[_track].data[i].value    = rand_in_range(1,  32);
+        // o->o[_track].data[i].offset   = rand_in_range(0,  0xFF);
         o->o[_track].data[i].degree   = rand_in_range(0,    11);
         o->o[_track].data[i].octave   = rand_in_range(0,     8);
         o->o[_track].data[i].velocity = rand_in_range(0,  0x7F);

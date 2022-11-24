@@ -85,6 +85,7 @@ extern void (*loop_sequence[])(track*);
 // Sequencer routines /////////////////////////////////////////
 void    reset_timestamp(sequencer* o, uint8_t _track, uint16_t bpm);
 void    sequencer_init(sequencer* o, uint16_t bpm);
+// void    sequencer_arm(sequencer* o);
 void    sequencer_run(sequencer* o);
 void    sequencer_stop(sequencer* o);
 void    sequencer_pause(sequencer* o);

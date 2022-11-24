@@ -12,3 +12,4 @@
 
 void _send_note_on(track* o);
 void _send_note_off(track* o);
+void _send_note(uint32_t);

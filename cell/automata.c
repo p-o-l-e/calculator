@@ -54,10 +54,10 @@ void ant_evolve(ant* o)
             o->current = ((o->rule   )&0b11); 
         }
     }
-    if(o->pos[0] >= COLS) o->pos[0] %= COLS;
-    if(o->pos[1] >= ROWS) o->pos[1] %= ROWS;
-    if(o->pos[0] < 0) o->pos[0] = COLS - o->pos[0]%COLS;
-    if(o->pos[1] < 0) o->pos[1] = ROWS - o->pos[1]%ROWS;
+    if(o->pos[0] >= COLS) o->pos[0] &= (COLS-1);
+    if(o->pos[1] >= ROWS) o->pos[1] &= (ROWS-1);
+    if(o->pos[0] < 0) o->pos[0] = COLS - (o->pos[0]&(COLS-1));
+    if(o->pos[1] < 0) o->pos[1] = ROWS - (o->pos[1]&(ROWS-1));
 }
 
 void ant_clr(ant* o)
