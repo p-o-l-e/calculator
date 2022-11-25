@@ -1,15 +1,9 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+
 /////////////////////////////////////////////////////////////////////
 // Langtons Ant /////////////////////////////////////////////////////
-// typedef enum { UP, RIGHT, DOWN, LEFT } direction;
-
-#define UP    0
-#define RIGHT 1
-#define DOWN  2
-#define LEFT  3
-
 #define ROWS  4
 #define COLS  4
 #define LANGTONS_ANT 0b00000000010101010110110011000110

@@ -33,6 +33,9 @@
         "string": "c",
         "string_view": "c",
         "inttypes.h": "c",
-        "automata.h": "c"
+        "automata.h": "c",
+        "encoder.h": "c",
+        "compare": "cpp",
+        "quadrature_decoder.h": "c"
     }
 }

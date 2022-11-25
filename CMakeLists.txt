@@ -28,7 +28,8 @@ target_include_directories(calculator PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 add_subdirectory(pico-ssd1306 build/ssd1306)
 add_subdirectory(littlefs build/littlefs)
 add_subdirectory(cell build/cell)
-add_subdirectory(pico-keypad build/keypad)
+add_subdirectory(encoder build/encoder)
+add_subdirectory(quadrature-decoder build/quadrature-decoder)
 add_subdirectory(ShiftRegister74HC595-Pico build/ShiftRegister74HC595-Pico)
 
 
@@ -39,10 +40,13 @@ target_link_libraries(calculator PRIVATE
 	tinyusb_device 
 	tinyusb_board
 	cell
-	keypad
+	encoder
+	quadrature_decoder
 	pico_multicore
 	hardware_i2c
 	hardware_spi
+	hardware_pio
+	hardware_dma
 	hardware_flash
 	SSD1306
 	littlefs

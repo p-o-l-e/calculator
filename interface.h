@@ -3,71 +3,77 @@
 #include "hardware/structs/clocks.h"
 #include "cell/midi_uart.h"
 #include "pico-ssd1306/ssd1306.h"
+#include "CD74HC4067.h"
+#include "encoder/encoder.h"
+#include "littlefs/fio.h"
 
 sequencer esq;
 uint16_t point[_tracks];
-volatile int f = 0;
+static lfs_t      lfs;
+static lfs_file_t INIT;
 
-void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical)
+int load_init()
 {
-    if(vertical) for(int i = y; i < length + y; i++) ssd1306_PSET(oled, x, i);
-    else for(int i = x; i < length + x; i++) ssd1306_PSET(oled, i, y);
-}
+    int err = lfs_mount(&lfs, &CFG);
 
-void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical)
-{
-    if(vertical)
+    if (err) 
     {
-        uint16_t v = roundf((float)(value * length) / (float)max);
-        for(int i = (y + length); i > (y + length - v); i-=2 ) ssd1306_line(oled, x, i, width, false);
+        lfs_format(&lfs, &CFG);
+        lfs_mount (&lfs, &CFG);
+
+        lfs_file_open (&lfs, &INIT, "PRESETS", LFS_O_RDWR | LFS_O_CREAT);
+        lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+        lfs_file_close(&lfs, &INIT);
     }
+    lfs_file_open(&lfs, &INIT, "PRESETS", LFS_O_RDWR);
+    lfs_file_read(&lfs, &INIT, &esq, sizeof(esq));
+
+    lfs_file_close(&lfs, &INIT);
+    lfs_unmount(&lfs);
 }
 
 
-const bool circle_glyph_8x8h[] =
-{
-    0,0,1,1,1,1,0,0,
-    0,1,0,0,0,0,1,0,
-    1,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,1,
-    0,1,0,0,0,0,1,0,
-    0,0,1,1,1,1,0,0,
-};
 
-const bool circle_glyph_8x8f[] =
+int load_file(int n, const char* path)
 {
-    0,0,1,1,1,1,0,0,
-    0,1,0,0,0,0,1,0,
-    1,0,0,1,1,0,0,1,
-    1,0,1,1,1,1,0,1,
-    1,0,1,1,1,1,0,1,
-    1,0,0,1,1,0,0,1,
-    0,1,0,0,0,0,1,0,
-    0,0,1,1,1,1,0,0
-};
-
-const bool circle_glyph_8x8r[] =
-{
-    0,0,1,1,1,1,0,0,
-    0,1,1,1,1,1,1,0,
-    1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,
-    0,1,1,1,1,1,1,0,
-    0,0,1,1,1,1,0,0
-};
-
-void ssd1306_glyph(ssd1306_t* oled, bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y)
-{
-    for(int i = 0; i < h; i++)
+    int err = lfs_mount(&lfs, &CFG);
+    if (err) 
     {
-        for(int j = 0; j < w; j++)
-        {
-            if(data[j + w * i]) ssd1306_PSET(oled, x + j, y + i);
-        }
+        lfs_format(&lfs, &CFG);
+        lfs_mount (&lfs, &CFG);
+
+        lfs_file_open (&lfs, &INIT, path, LFS_O_RDWR | LFS_O_CREAT);
+        lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+        lfs_file_close(&lfs, &INIT);
     }
+
+    if(lfs_file_open (&lfs, &INIT, path, LFS_O_RDWR) == 0)
+    {
+        lfs_file_read (&lfs, &INIT, &esq, sizeof(esq));
+        lfs_file_close(&lfs, &INIT);
+    }
+
+    lfs_unmount(&lfs);
 }
 
+
+int save_file(int n, const char* path)
+{
+    int err = lfs_mount(&lfs, &CFG);
+    lfs_file_open (&lfs, &INIT, path, LFS_O_RDWR | LFS_O_CREAT);
+    err = lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+    lfs_file_close(&lfs, &INIT);
+    lfs_unmount(&lfs);
+    return err;
+}
+
+
+int save_init()
+{
+    int err = lfs_mount(&lfs, &CFG);
+    lfs_file_open (&lfs, &INIT, "PRESETS", LFS_O_RDWR | LFS_O_CREAT);
+    lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+    lfs_file_close(&lfs, &INIT);
+    lfs_unmount(&lfs);
+    return err;
+}

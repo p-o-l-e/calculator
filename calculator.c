@@ -22,45 +22,24 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "pico/stdlib.h"
-#include "hardware/gpio.h"
-#include "pico/binary_info.h"
-#include "bsp/board.h"
-#include "tusb.h"
 
-#include "pico-ssd1306/ssd1306.h"
+#include "cell/automata.h"
 #include "pico/multicore.h"
-#include "pico/util/queue.h"
-#include "CD74HC4067.h"
-#include "ShiftRegister74HC595-Pico/sr_common.h"
 #include "interface.h"
 #include "suspend.h"
-#include "cell/automata.h"
+#include "io.h"
 
-// #define _MULTI_THREADED
-// #include <pthread.h>
-// pthread_t _thread;
-queue_t queue;
-
-
-#define SPI_PORT    spi0 
-#define CLOCK_595   18
-#define DATA_595    19
-#define LATCH_595   16
-ShiftRegister74HC595 sr;
-
-#define SDA_PIN     2
-#define SCL_PIN     3
-#define RESET_PIN  -1
-#define OLED_WIDTH  128
-#define OLED_HEIGHT 64
-ssd1306_t oled;
+// encoder ncoder[4];
 
 bool refresh_display = false;
 bool repaint_display = false;
 uint8_t selected_track = 0; // Displayed track
 int8_t page = 0; // Current page
 uint16_t cable_num = 0;
+
+
+bool hold[16];
+bool hold_matrix[16];
 
 volatile absolute_time_t tts[_tracks]; // Trigger ON 
 volatile absolute_time_t gts[_tracks]; // Gate OFF
@@ -78,6 +57,11 @@ void core1_interrupt_handler()
     while (multicore_fifo_rvalid())
     {
         uint16_t raw = multicore_fifo_pop_blocking();  
+        _4067_iterator++;
+        if(_4067_iterator > 5) _4067_iterator = 0;
+        _4067_switch(_4067_iterator, 0);
+        uint8_t ccol = keypad_switch();
+
         if(refresh_display)
         {
             ssd1306_show(&oled);
@@ -157,6 +141,51 @@ void core1_interrupt_handler()
             }
         }       
         swith_led();
+
+        if(_4067_get())
+        {
+            switch (_4067_iterator)
+            {
+                case PGLFT: if(!hold[PGLFT]) { page--; repaint_display = true; hold[PGLFT] = true;} break;
+                case PGRGT: if(!hold[PGRGT]) { page++; repaint_display = true; hold[PGRGT] = true;} break;
+                case MROW0: 
+                    if(!hold_matrix[ccol]) 
+                    { 
+                        esq.o[selected_track].trigger[ccol] = !esq.o[selected_track].trigger[ccol]; 
+                        hold_matrix[ccol] = true; 
+                    } 
+                    break;
+                case MROW1: 
+                    if(!hold_matrix[ccol + 4]) 
+                    { 
+                        esq.o[selected_track].trigger[ccol + 4] = !esq.o[selected_track].trigger[ccol + 4]; 
+                        hold_matrix[ccol + 4] = true; 
+                    } 
+                    break;
+                case MROW2: 
+                    if(!hold_matrix[ccol + 8]) 
+                    { 
+                        esq.o[selected_track].trigger[ccol + 8] = !esq.o[selected_track].trigger[ccol + 8]; 
+                        hold_matrix[ccol + 8] = true; 
+                    } 
+                    break;
+                case MROW3: 
+                    if(!hold_matrix[ccol + 12]) 
+                    { 
+                        esq.o[selected_track].trigger[ccol + 12] = !esq.o[selected_track].trigger[ccol + 12]; 
+                        hold_matrix[ccol + 12] = true; 
+                    } 
+                    break;
+                default: break;
+            }
+            if(page > PAGES) page = 0;
+            else if(page < 0) page = PAGES - 1;
+        }
+        else 
+        {
+            hold[_4067_iterator] = false;
+            if(_4067_iterator < 4) hold_matrix[_4067_iterator * 4 + ccol] = false;
+        }
     }
     multicore_fifo_clear_irq(); // Clear interrupt
 }
@@ -203,6 +232,9 @@ int main()
     shift_register_74HC595_init(&sr, SPI_PORT, DATA_595, CLOCK_595, LATCH_595);
     gpio_set_outover(DATA_595, GPIO_OVERRIDE_INVERT); 
     _74HC595_set_all_low(&sr);
+    // 4067 Init //////////////////////////////////////////////////////////////
+    _4067_init();
+    keypad_init();
     ///////////////////////////////////////////////////////////////////////////
     // Sequencer Init /////////////////////////////////////////////////////////
     srand(time_us_32());
@@ -210,7 +242,6 @@ int main()
     sequencer_randomize(&esq, 0);
     ant_init(&la);
     element_init(&el);
-    queue_init(&queue, sizeof(uint32_t), 32);
     repaint_display = true;
     page = -1;
     uint32_t rv[_tracks]; // Revolution counters
@@ -258,15 +289,8 @@ int main()
 
         if(rv[0] != esq.o[0].revolutions)
         {
-            ant_evolve(&la);
-            // evolve(&el);
-            for(int i = 0; i < 16; i++) esq.o[0].trigger[i] = la.field[i];
-            // el.rule = 86;
-            // for(int i = 0; i < 4; i++) 
-            // {
-            //     for(int j = 0; j < 4; j++)
-            //     esq.o[0].trigger[i + (4*j)] = el.field[i][j];
-            // }
+            // ant_evolve(&la);
+            // for(int i = 0; i < 16; i++) esq.o[0].trigger[i] = la.field[i];
             esq.o[0].regenerate[0] = false;
             rv[0] = esq.o[0].revolutions;
         }
@@ -293,7 +317,7 @@ void send(uint8_t id, uint8_t status) // Send MIDI message
     default:
         break;
     }
-    if(page == -1)
+    if(page == 3)
     {
         char str[16];
         if(status == 0x80)

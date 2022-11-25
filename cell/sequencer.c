@@ -36,6 +36,7 @@ void track_init(track* o)
         o->data[i].velocity = 0x7F;
         o->data[i].value    = 8;
         o->data[i].offset   = 0;
+        o->trigger[i] = false;
     }
 }
 
@@ -157,8 +158,8 @@ void sequencer_init(sequencer* o, uint16_t bpm)
 
 void sequencer_randomize(sequencer* o, uint8_t _track)
 {
-    uint16_t beat = rand_in_range(1, 0xFFFF);
-    insert_bits(&o->o[_track], beat);
+    // uint16_t beat = rand_in_range(1, 0xFFFF);
+    // insert_bits(&o->o[_track], beat);
     o->o[_track].scale.data = rand_in_range(1, 0xFFF);
     o->o[_track].scale.root = rand_in_range(0,    11);
     set_scale(&o->o[_track].scale);

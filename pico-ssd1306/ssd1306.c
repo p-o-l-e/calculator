@@ -29,7 +29,6 @@
 #include <stdio.h>
 
 #include "ssd1306.h"
-#include "font.h"
 
 
 inline static void ssd1306_write(ssd1306_t *p, uint8_t val) 
@@ -180,4 +179,32 @@ void ssd1306_log(ssd1306_t* p, char* s, uint16_t ms, bool clr)
     ssd1306_print_string(p, 0, 7*8, s, 0, 0);
     ssd1306_show(p);
     sleep_ms(ms);
+}
+
+
+void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical)
+{
+    if(vertical) for(int i = y; i < length + y; i++) ssd1306_PSET(oled, x, i);
+    else for(int i = x; i < length + x; i++) ssd1306_PSET(oled, i, y);
+}
+
+void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical)
+{
+    if(vertical)
+    {
+        uint16_t v = roundf((float)(value * length) / (float)max);
+        for(int i = (y + length); i > (y + length - v); i-=2 ) ssd1306_line(oled, x, i, width, false);
+    }
+}
+
+
+void ssd1306_glyph(ssd1306_t* oled, bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y)
+{
+    for(int i = 0; i < h; i++)
+    {
+        for(int j = 0; j < w; j++)
+        {
+            if(data[j + w * i]) ssd1306_PSET(oled, x + j, y + i);
+        }
+    }
 }

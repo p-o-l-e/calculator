@@ -1,11 +1,13 @@
 #pragma once
 #include "pico/stdlib.h"
+#include <stdbool.h>
 
 // GPIO PINS
-#define S0 20
-#define S1 21
-#define S2 22
-#define S3 23
+#define S0 15
+#define S1 14
+#define S2 13
+#define S3 12
+#define SG 11
 
 typedef struct 
 {
@@ -14,9 +16,9 @@ typedef struct
     unsigned c : 1;
     unsigned d : 1;
 
-} mode_4067;
+} _4067_mode;
 
-mode_4067 _mode_4067[] = 
+_4067_mode __4067[] = 
 {
     {.a = 0, .b = 0, .c = 0, .d = 0}, //  0
     {.a = 1, .b = 0, .c = 0, .d = 0}, //  1
@@ -37,11 +39,31 @@ mode_4067 _mode_4067[] =
 
 };
 
-void Switch4067(int pin, unsigned lag)
+void _4067_init()
+{
+    gpio_init(S0); 
+    gpio_init(S1);
+    gpio_init(S2);
+    gpio_init(S3);
+    gpio_init(SG);
+    gpio_set_dir(S0, GPIO_OUT);
+    gpio_set_dir(S1, GPIO_OUT);
+    gpio_set_dir(S2, GPIO_OUT);
+    gpio_set_dir(S3, GPIO_OUT);
+    gpio_set_dir(SG, GPIO_IN);
+
+}
+
+void _4067_switch(int pin, unsigned lag)
 {  
-    gpio_put(S0, _mode_4067[pin].a);
-    gpio_put(S1, _mode_4067[pin].b);
-    gpio_put(S2, _mode_4067[pin].c);
-    gpio_put(S3, _mode_4067[pin].d);
+    gpio_put(S0, __4067[pin].a);
+    gpio_put(S1, __4067[pin].b);
+    gpio_put(S2, __4067[pin].c);
+    gpio_put(S3, __4067[pin].d);
     sleep_us(lag);
+}
+
+bool _4067_get()
+{
+    return gpio_get(SG);
 }

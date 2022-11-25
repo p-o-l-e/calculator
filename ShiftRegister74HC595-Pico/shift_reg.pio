@@ -1,0 +1,41 @@
+
+.program shift_reg
+.side_set 1 opt
+
+.wrap_target
+pull          
+set x, 7                     ; loop counter, loop 8 times
+bitloop:                 
+out pins, 1         side 0    [4]; output the data and pulse the clock pin                 
+jmp x-- bitloop     side 1    [4]        
+set pins 1       [7]; pulse the latch
+set pins 0       
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO output, and configures the SM to output on a particular pin
+#include "hardware/gpio.h"
+void shift_reg_program_init(PIO pio, uint sm, uint prog_offs, uint pin_sck, uint pin_latch, uint pin_data) {
+   pio_sm_config c = shift_reg_program_get_default_config(prog_offs);
+   
+   pio_gpio_init(pio, pin_data);
+   pio_gpio_init(pio, pin_sck);
+   pio_gpio_init(pio, pin_latch);
+
+   pio_sm_set_consecutive_pindirs(pio, sm, pin_data, 1, true);
+   pio_sm_set_consecutive_pindirs(pio, sm, pin_sck, 1, true);
+   pio_sm_set_consecutive_pindirs(pio, sm, pin_latch, 1, true);
+   
+   sm_config_set_out_pins(&c, pin_data, 1);
+   sm_config_set_sideset_pins(&c, pin_sck);
+   sm_config_set_set_pins(&c, pin_latch, 1);
+   pio_sm_set_pins(pio, sm, 0);
+
+   sm_config_set_out_shift(&c, true, false, 8);
+   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+   pio_sm_init(pio, sm, prog_offs, &c);
+   pio_sm_set_enabled (pio, sm, true);
+
+}
+%}

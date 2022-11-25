@@ -5,4 +5,6 @@ add_library(SSD1306 INTERFACE)
 target_sources(SSD1306 INTERFACE
 
     ${CMAKE_CURRENT_LIST_DIR}/ssd1306.c
+    ${CMAKE_CURRENT_LIST_DIR}/font.c
+
 )

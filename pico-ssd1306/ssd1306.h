@@ -27,6 +27,8 @@
 #include <hardware/i2c.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "font.h"
+
 
 typedef enum 
 {
@@ -77,3 +79,7 @@ void ssd1306_PSET(ssd1306_t *p, uint32_t x, uint32_t y);
 void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s, bool invert);
 void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s, bool invert, bool vertical);
 void ssd1306_log(ssd1306_t* p, char* s, uint16_t ms, bool clr);
+void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical);
+void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical);
+void ssd1306_glyph(ssd1306_t* oled, bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
+
