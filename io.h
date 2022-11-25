@@ -2,8 +2,9 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "pico/binary_info.h"
-#include "pico-ssd1306/ssd1306.h"
-#include "ShiftRegister74HC595-Pico/sr_common.h"
+#include "SSD1306/ssd1306.h"
+#include "74HC595/sr_common.h"
+#include "quadrature-decoder/quadrature_decoder.h"
 #include "bsp/board.h"
 #include "tusb.h"
 
@@ -11,7 +12,7 @@
 #define CLOCK_595   18
 #define DATA_595    19
 #define LATCH_595   16
-ShiftRegister74HC595 sr;
+CD74HC595 sr;
 
 #define SDA_PIN     2
 #define SCL_PIN     3
@@ -23,8 +24,11 @@ ssd1306_t oled;
 #define PGLFT  4 // Page Left
 #define PGRGT  5 // Page Right
 // Encoder
-#define NCODER_A 10
-#define NCODER_B 11
+#define NCODER_A 9
+#define NCODER_B 10
+// encoder ncoder;
+quadrature_decoder ncoder;
+int32_t ncoder_index;
 // Button matrix columns: GPIOs
 #define MCOL0  17
 #define MCOL1  20
@@ -62,4 +66,14 @@ uint8_t keypad_switch()
     }
     f++;
     return column;
+}
+
+int32_t quad_encoder_init()
+{
+    gpio_init(NCODER_A);
+    gpio_init(NCODER_B);
+    gpio_pull_down(NCODER_A);
+    gpio_pull_down(NCODER_B);
+    quadrature_decoder_init(&ncoder, pio0);
+    return add_quadrature_decoder(&ncoder, NCODER_A);
 }

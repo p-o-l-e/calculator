@@ -1,4 +1,10 @@
-/* Copyright 2021 Adam Green (https://github.com/adamgreen/)
+/* 
+   This library is a C translation of the [QuadratureDecoder]
+   (https://github.com/adamgreen/QuadratureDecoder), 
+   all functions are a 1:1 port of the original.
+   2022 Unmanned
+
+   Copyright 2021 Adam Green (https://github.com/adamgreen/)
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -15,8 +21,6 @@
 // Class to use the RP2040's PIO state machines to count quadrature encoder ticks.
 #include "quadrature_decoder.h"
 #include <quadrature_decoder.pio.h>
-
-
 
 
 bool quadrature_decoder_init(quadrature_decoder* qd, PIO pio)
@@ -91,15 +95,7 @@ int32_t add_quadrature_decoder(quadrature_decoder* qd, uint32_t pinBase)
 }
 
 
-inline int32_t get_count(quadrature_decoder* qd, int32_t index)
-{
-    hard_assert ( index >= 0 && index < (int32_t)(sizeof(qd->m_counters)/sizeof(qd->m_counters[0])) );
-    int32_t count = qd->m_counters[index];
-    restartDmaBeforeItStops(index);
-    return count;
-}
-
-inline void restart_dma_before_it_stops(quadrature_decoder* qd, int32_t index)
+void restart_dma_before_it_stops(quadrature_decoder* qd, int32_t index)
 {
     uint32_t dmaChannel = qd->m_dmaChannels[index];
     uint32_t dmaTransfersLeft = dma_channel_hw_addr(dmaChannel)->transfer_count;
@@ -112,4 +108,13 @@ inline void restart_dma_before_it_stops(quadrature_decoder* qd, int32_t index)
     // including the 0xFFFFFFFF transfer count.
     dma_channel_abort(dmaChannel);
     dma_channel_start(dmaChannel);
+}
+
+
+int32_t get_count(quadrature_decoder* qd, int32_t index)
+{
+    hard_assert ( index >= 0 && index < (int32_t)(sizeof(qd->m_counters)/sizeof(qd->m_counters[0])) );
+    int32_t count = qd->m_counters[index];
+    restart_dma_before_it_stops(qd, index);
+    return count;
 }

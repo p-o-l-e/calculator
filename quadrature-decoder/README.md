@@ -1,13 +1,11 @@
 # QuadratureDecoder - PIO based Encoder Library for the RP2040
-![Test Setup with Function Generator](TestSetup.jpg)
 
 ## Overview
-The ```QuadratureDecoder``` C++ class can be used to count quadrature encoder signal transitions in the background using the RP2040's PIO and DMA hardware. The features of this class include:
+The ```QuadratureDecoder``` C library can be used to count quadrature encoder signal transitions in the background using the RP2040's PIO and DMA hardware. The features of this library include:
 * Keeping track of the quadrature encoder transitions without using any CPU cycles.
 * Samples the encoder pins at 11.36 MHz (125 MHz / 11 PIO instructions).
   * Counts falling and rising edges encountered on both of the encoder signals.
   * Maximum encoder frequency supported is therefore 11.36MHz / 4 = 2.84MHz
-  * The photo above shows a function generator setup to verify that this library does function up to the 2.84MHz limit.
 * Each state machine in the PIO can be used to track an individual encoder so a single PIO can be used to track 4 encoders.
 
 ## Hardware Resources Utilized
@@ -75,6 +73,6 @@ The input shift register is used to left shift in the previous 2-bit value of th
 The 4-bit value in the ISR is used to index into the 16 element jump table at the beginning of the PIO program. Each element in the table will jump to the ```plus1```, ```minus1```, or ```delta0``` label depending on whether the encoder has transitioned clockwise, counter-clockwise, or not at all.
 
 ### DMA
-The PIO state machine takes care of counting the encoder signal transitions and pushes out counter updates to its RX FIFO. Rather than using the CPU to constantly read out the counter updates from the FIFO, a DMA channel is used instead. It copies the latest count into the correct ```m_counters[]``` array element of the ```QuadratureDecoder``` object.
+The PIO state machine takes care of counting the encoder signal transitions and pushes out counter updates to its RX FIFO. Rather than using the CPU to constantly read out the counter updates from the FIFO, a DMA channel is used instead. It copies the latest count into the correct ```m_counters[]``` array element of the ```quadrature_decoder``` object.
 
-The DMA channel is configured to make 0xFFFFFFFF such transfers in the background. This does mean that it would stop working after 4,294,967,295 counter updates. To remedy that issue, the ```QuadratureDecoder::getCount()``` method will restart the DMA transfer once it has completed more than 2,147,483,648 transfers. My testing showed that this restart doesn't cause any missed encoder counts updates, even if the restart frequency is increased to once per second.
+The DMA channel is configured to make 0xFFFFFFFF such transfers in the background. This does mean that it would stop working after 4,294,967,295 counter updates. To remedy that issue, the ```get_count()``` method will restart the DMA transfer once it has completed more than 2,147,483,648 transfers. My testing showed that this restart doesn't cause any missed encoder counts updates, even if the restart frequency is increased to once per second.

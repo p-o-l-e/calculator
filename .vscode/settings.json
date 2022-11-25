@@ -36,6 +36,8 @@
         "automata.h": "c",
         "encoder.h": "c",
         "compare": "cpp",
-        "quadrature_decoder.h": "c"
+        "quadrature_decoder.h": "c",
+        "quadrature_decoder.pio.h": "c",
+        "fio.h": "c"
     }
 }

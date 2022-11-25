@@ -1,4 +1,10 @@
-/* Copyright 2021 Adam Green (https://github.com/adamgreen/)
+/* 
+   This library is a C translation of the [QuadratureDecoder]
+   (https://github.com/adamgreen/QuadratureDecoder), 
+   all functions are a 1:1 port of the original.
+   2022 Unmanned
+
+    Copyright 2021 Adam Green (https://github.com/adamgreen/)
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,6 +28,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+
 #define DMA_MAX_TRANSFER_COUNT 0xFFFFFFFF
 #define DMA_REFRESH_THRESHOLD  0x80000000
 
@@ -35,5 +42,5 @@ typedef struct
 
 bool quadrature_decoder_init(quadrature_decoder* qd, PIO pio);
 int32_t add_quadrature_decoder(quadrature_decoder* qd, uint32_t pinBase);
-inline int32_t get_count(quadrature_decoder* qd, int32_t index);
-inline void restart_dma_before_it_stops(quadrature_decoder* qd, int32_t index);
+void restart_dma_before_it_stops(quadrature_decoder* qd, int32_t index);
+int32_t get_count(quadrature_decoder* qd, int32_t index);

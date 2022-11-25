@@ -235,6 +235,8 @@ int main()
     // 4067 Init //////////////////////////////////////////////////////////////
     _4067_init();
     keypad_init();
+    // encoder_init(&ncoder, NCODER_A, NCODER_B);
+    ncoder_index = quad_encoder_init();
     ///////////////////////////////////////////////////////////////////////////
     // Sequencer Init /////////////////////////////////////////////////////////
     srand(time_us_32());
@@ -243,7 +245,7 @@ int main()
     ant_init(&la);
     element_init(&el);
     repaint_display = true;
-    page = -1;
+    page = 3;
     uint32_t rv[_tracks]; // Revolution counters
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
@@ -319,11 +321,15 @@ void send(uint8_t id, uint8_t status) // Send MIDI message
     }
     if(page == 3)
     {
+        
         char str[16];
-        if(status == 0x80)
-        sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-        if(status == 0x90)
-        sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+        // encoder_read(&ncoder);
+        sprintf(str, "NC :%d", get_count(&ncoder, ncoder_index));
+        // sprintf(str, "NC :%d", ncoder.prior);
+        // if(status == 0x80)
+        // sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+        // if(status == 0x90)
+        // sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
         ssd1306_log(&oled, str, 0, 0);
     }
 }

@@ -25,22 +25,20 @@ pico_enable_stdio_uart(calculator 1)
 target_include_directories(calculator PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
 #add_subdirectory(pico-ss-oled build/ssoled)
-add_subdirectory(pico-ssd1306 build/ssd1306)
+add_subdirectory(SSD1306 build/SSD1306)
 add_subdirectory(littlefs build/littlefs)
 add_subdirectory(cell build/cell)
-add_subdirectory(encoder build/encoder)
 add_subdirectory(quadrature-decoder build/quadrature-decoder)
-add_subdirectory(ShiftRegister74HC595-Pico build/ShiftRegister74HC595-Pico)
+add_subdirectory(74HC595 build/74HC595)
 
 
 
 target_link_libraries(calculator PRIVATE
-	ShiftRegister74HC595
+	74HC595
 	pico_stdlib
 	tinyusb_device 
 	tinyusb_board
 	cell
-	encoder
 	quadrature_decoder
 	pico_multicore
 	hardware_i2c

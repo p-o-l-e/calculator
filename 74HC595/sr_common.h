@@ -1,5 +1,5 @@
 #pragma once
-#include "ShiftRegister74HC595.h"
+#include "74HC595.h"
 
 uint16_t get_point(uint8_t x, uint8_t y, uint8_t c)
 {
@@ -10,7 +10,7 @@ uint16_t get_point(uint8_t x, uint8_t y, uint8_t c)
     return data;
 }
 
-void set_bits(ShiftRegister74HC595* sr, uint16_t a)
+void set_bits(CD74HC595* sr, uint16_t a)
 {
     for(int i = 0; i < 16; i++)
     {
@@ -19,7 +19,7 @@ void set_bits(ShiftRegister74HC595* sr, uint16_t a)
     }
 }
 
-void pset(ShiftRegister74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
+void pset(CD74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
 {   
     uint16_t data = 0;
     if (c  < 3) data = ((1 << x) << (4*(c+1))) + 0b1111^(1 << y);
@@ -32,7 +32,7 @@ void pset(ShiftRegister74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
     }
 }
 
-void pset_clr(ShiftRegister74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
+void pset_clr(CD74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
 {
     
     uint8_t cb = 0;
@@ -51,7 +51,7 @@ void pset_clr(ShiftRegister74HC595* sr, uint8_t x, uint8_t y, uint8_t c)
 
 }
 
-void pset_rgb(ShiftRegister74HC595* sr, uint8_t x, uint8_t y, uint32_t r, uint32_t g, uint32_t b)
+void pset_rgb(CD74HC595* sr, uint8_t x, uint8_t y, uint32_t r, uint32_t g, uint32_t b)
 {
     pset(sr, x, y, 0);
     sleep_us(b);

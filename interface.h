@@ -2,9 +2,8 @@
 #include "hardware/clocks.h"
 #include "hardware/structs/clocks.h"
 #include "cell/midi_uart.h"
-#include "pico-ssd1306/ssd1306.h"
+#include "SSD1306/ssd1306.h"
 #include "CD74HC4067.h"
-#include "encoder/encoder.h"
 #include "littlefs/fio.h"
 
 sequencer esq;
