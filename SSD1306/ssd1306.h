@@ -1,85 +1,159 @@
-// MIT License
+#ifndef __SSD1306_H__
+#define __SSD1306_H__
 
-// Copyright (c) 2021 David Schramm
-// Copyright (c) 2022 Unmanned
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-
-#pragma once
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include "font.h"
+
+
+#define SSD1306_CONTRAST 0x20
+#define SSD1306_DISPLAYPAUSEOFF 0xA4
+#define SSD1306_DISPLAYPAUSEON 0xA5
+#define SSD1306_NORMALDISPLAY 0xA6
+#define SSD1306_INVERTDISPLAY 0xA7
+#define SSD1306_DISPLAYOFF 0xAE
+#define SSD1306_DISPLAYON 0xAF
+#define SSD1306_DISPLAYOFFSET 0xD3
+#define SSD1306_COMPINS 0xDA
+#define SSD1306_VCOMDESELECT 0xDB
+#define SSD1306_DISPLAYCLOCKDIV 0xD5
+#define SSD1306_PRECHARGE 0xD9
+#define SSD1306_MULTIPLEX 0xA8
+#define SSD1306_LOWCOLUMN 0x00
+#define SSD1306_HIGHCOLUMN 0x10
+#define SSD1306_STARTLINE 0x40
+#define SSD1306_MEMORYMODE 0x20
+#define SSD1306_COLUMNADDR 0x21
+#define SSD1306_PAGEADDR   0x22
+#define SSD1306_COMSCANNORMAL 0xC0
+#define SSD1306_COMSCANREMAP 0xC8
+#define SSD1306_SEGNORMAL 0xA0
+#define SSD1306_SEGREMAP 0xA0
+#define SSD1306_CHARGEPUMP 0x8D
+#define SSD1306_EXTERNALVCC 0x1
+#define SSD1306_SWITCHCAPVCC 0x2
+
+#define SSD1306_CLOCKDIVRESET 0x80
+#define SSD1306_DISPLAYOFFSETRESET 0x00
+#define SSD1306_ENABLECHARGEPUMP 0x8D
+#define SSD1306_COMPINSRESET 0x12
+#define SSD1306_CONTRASTRESET 0x7f
+#define SSD1306_PRECHARGERESET 0x22
+#define SSD1306_VCOMDESELECTRESET 0x20
+#define SSD1306_PAGEADDRSTART 0x00
+#define SSD1306_PAGEADDREND 0x07
+#define SSD1306_COLUMNADDRSTART 0x00
+
+#define SSD1306_CONTROL_COMMAND 0x00
+#define SSD1306_CONTROL_DATA 0x40
 
 
 typedef enum 
 {
-    SET_CONTRAST 		= 0x81,
-    SET_ENTIRE_ON 		= 0xA4,
-    SET_NORM_INV 		= 0xA6,
-    SET_DISP 			= 0xAE,
-    SET_MEM_ADDR 		= 0x20,
-    SET_COL_ADDR 		= 0x21,
-    SET_PAGE_ADDR 		= 0x22,
-    SET_DISP_START_LINE = 0x40,
-    SET_SEG_REMAP 		= 0xA0,
-    SET_MUX_RATIO 		= 0xA8,
-    SET_COM_OUT_DIR 	= 0xC0,
-    SET_DISP_OFFSET 	= 0xD3,
-    SET_COM_PIN_CFG 	= 0xDA,
-    SET_DISP_CLK_DIV 	= 0xD5,
-    SET_PRECHARGE 		= 0xD9,
-    SET_VCOM_DESEL 		= 0xDB,
-    SET_CHARGE_PUMP 	= 0x8D
+	BLACK = 0,
+    WHITE = 1,
 
-} ssd1306_command_t;
+} ssd1306_color_t;
 
+typedef enum 
+{
+    HORIZONTAL_ADDR = 0x00,
+    VERTICAL_ADDR   = 0x01,
+    PAGE_ADDR       = 0x02
+
+} ssd1306_memory_mode_t;
 
 typedef struct 
 {
-    uint8_t width; 		/**< width of display */
-    uint8_t height; 	/**< height of display */
-    uint8_t pages;		/**< stores pages of display (calculated on initialization*/
-    uint8_t address; 	/**< i2c address of display*/
-    i2c_inst_t *i2c_i; 	/**< i2c connection instance */
-    bool external_vcc; 	/**< whether display uses external vcc */ 
-    uint8_t *buffer;	/**< display buffer */
-    size_t bufsize;		/**< buffer size */
+    uint16_t addr;
+    i2c_inst_t *i2c;
+    uint8_t width;
+    uint8_t height;
+    uint8_t* buffer;
 
 } ssd1306_t;
 
+uint32_t ssd1306_init(ssd1306_t *ssd, uint16_t addr, i2c_inst_t *i2c, ssd1306_color_t color);
 
-bool ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address, i2c_inst_t *i2c_instance);
-void ssd1306_poweroff(ssd1306_t *p);
-void ssd1306_poweron(ssd1306_t *p);
-void ssd1306_contrast(ssd1306_t *p, uint8_t val);
-void ssd1306_invert(ssd1306_t *p, uint8_t inv);
-void ssd1306_show(ssd1306_t *p);
-void ssd1306_clear(ssd1306_t *p);
+static inline void ssd1306_free(ssd1306_t *ssd) 
+{
+    free(ssd->buffer);
+}
 
-void ssd1306_PSET(ssd1306_t *p, uint32_t x, uint32_t y);
+static inline void ssd1306_send_command(ssd1306_t *ssd, uint8_t command) 
+{
+    const uint8_t message[] = {SSD1306_CONTROL_COMMAND, command};
+    i2c_write_blocking(ssd->i2c, ssd->addr, message, 2, false);
+}
+
+void ssd1306_send_command_list(ssd1306_t *ssd, const uint8_t *commands, size_t command_size);
+void ssd1306_send_data(ssd1306_t *ssd, const uint8_t *data, size_t data_size);
+
+void ssd1306_set_pixels(ssd1306_t *ssd);
+
+static inline void ssd1306_set_display_power(ssd1306_t *ssd, bool power) 
+{
+    ssd1306_send_command(ssd, SSD1306_DISPLAYOFF | (uint8_t)power);
+}
+
+static inline void ssd1306_set_pause_display(ssd1306_t *ssd, bool pause) 
+{
+    ssd1306_send_command(ssd, SSD1306_DISPLAYPAUSEOFF | (uint8_t)pause);
+}
+
+static inline void ssd1306_set_invert_colors(ssd1306_t *ssd, bool invert) 
+{
+    ssd1306_send_command(ssd, SSD1306_NORMALDISPLAY | (uint8_t)invert);
+}
+
+static inline void ssd1306_set_memory_mode(ssd1306_t *ssd, ssd1306_memory_mode_t mode) 
+{
+    const uint8_t message[] = {SSD1306_MEMORYMODE, (uint8_t)mode};
+    ssd1306_send_command_list(ssd, message, 2);
+}
+
+static inline void ssd1306_set_vertical_flip(ssd1306_t *ssd, bool flipped) 
+{
+    ssd1306_send_command(ssd, SSD1306_COMSCANNORMAL | ((uint8_t)flipped) * 0x8);
+}
+
+static inline void ssd1306_set_horizontal_flip(ssd1306_t *ssd, bool flipped) 
+{
+    ssd1306_send_command(ssd, SSD1306_SEGNORMAL | (uint8_t)flipped);
+}
+
+static inline void ssd1306_set_full_rotation(ssd1306_t *ssd, bool rotated) 
+{
+    ssd1306_set_vertical_flip(ssd, rotated);
+    ssd1306_set_horizontal_flip(ssd, rotated);
+}
+
+
+static inline void ssd1306_buffer_set_pixels_direct(ssd1306_t *ssd, const uint8_t *pixels) 
+{
+    memcpy(ssd->buffer, pixels, ssd->width * ssd->height / 8);
+}
+
+static inline void ssd1306_buffer_fill_pixels(ssd1306_t *ssd, ssd1306_color_t color) 
+{
+    memset(ssd->buffer, (color == WHITE) ? 0xff : 0x00, ssd->width * ssd->height / 8);
+}
+
+
+
+
+void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y);
 void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s, bool invert);
 void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s, bool invert, bool vertical);
 void ssd1306_log(ssd1306_t* p, char* s, uint16_t ms, bool clr);
 void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical);
 void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical);
 void ssd1306_glyph(ssd1306_t* oled, bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
+void ssd1306_progress_cv_bar(ssd1306_t* oled, int8_t value, uint8_t x, uint8_t y, uint8_t max, uint8_t length, uint8_t width);
 
+
+
+#endif

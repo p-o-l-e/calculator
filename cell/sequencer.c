@@ -139,6 +139,8 @@ void sequencer_init(sequencer* o, uint16_t bpm)
     for(int i = 0; i < _tracks; i++)
     {
         track_init(&o->o[i]);
+        o->o[i].channel = i;
+        automata_init(&o->ant[i]);
         reset_timestamp(o, i, bpm);
     }
 }
@@ -166,7 +168,7 @@ void sequencer_randomize(sequencer* o, uint8_t _track)
     for(int i = 0; i < _steps; i++)
     {
         o->o[_track].data[i].value    = rand_in_range(1,  32);
-        // o->o[_track].data[i].offset   = rand_in_range(0,  0xFF);
+        o->o[_track].data[i].offset   = rand_in_range(-0x7F,  0x7F);
         o->o[_track].data[i].degree   = rand_in_range(0,    11);
         o->o[_track].data[i].octave   = rand_in_range(0,     8);
         o->o[_track].data[i].velocity = rand_in_range(0,  0x7F);

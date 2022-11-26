@@ -23,20 +23,16 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "cell/automata.h"
 #include "pico/multicore.h"
 #include "interface.h"
 #include "suspend.h"
 #include "io.h"
 
-// encoder ncoder[4];
-
 bool refresh_display = false;
-bool repaint_display = false;
-uint8_t selected_track = 0; // Displayed track
+bool repaint_display = true;
+int8_t selected_track = 0; // Displayed track
 int8_t page = 0; // Current page
 uint16_t cable_num = 0;
-
 
 bool hold[16];
 bool hold_matrix[16];
@@ -48,8 +44,9 @@ volatile bool gate[_tracks]; // OFF is pending
 void swith_led();
 void arm(uint32_t lag);
 void send(uint8_t id, uint8_t status);
-ant la;
-element el;
+
+int32_t prior = 0;
+float cap = 0.0f;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -58,22 +55,76 @@ void core1_interrupt_handler()
     {
         uint16_t raw = multicore_fifo_pop_blocking();  
         _4067_iterator++;
-        if(_4067_iterator > 5) _4067_iterator = 0;
+        if(_4067_iterator >= N4067) _4067_iterator = 0;
         _4067_switch(_4067_iterator, 0);
         uint8_t ccol = keypad_switch();
+        int32_t current = get_count(&ncoder, ncoder_index);
+        if(current!=prior)
+        {
+            int f = -1;
+            for(int i = 0; i < 16; i++)
+            {
+                if(hold_matrix[i])
+                {
+                    f = i;
+                    break;
+                }
+            }
+            if(f >= 0) 
+            {
+                cap += ((float)(prior - current)*0.33f);
+                switch (page)
+                {
+                    case PAGE_DRTN: 
+                        esq.o[selected_track].data[f].value  += ((prior > current) ? -1 : 1); 
+                        if(esq.o[selected_track].data[f].value > 0xFF) esq.o[selected_track].data[f].value = 0xFF;
+                        else if(esq.o[selected_track].data[f].value < 1) esq.o[selected_track].data[f].value = 1;
+                        break;
+
+                    case PAGE_VELO: 
+                        esq.o[selected_track].data[f].velocity  += ((prior > current) ? -1 : 1); 
+                        if(esq.o[selected_track].data[f].velocity > 0x7F) esq.o[selected_track].data[f].velocity = 0x7F;
+                        else if(esq.o[selected_track].data[f].velocity < 1) esq.o[selected_track].data[f].velocity = 1;
+                        break;
+
+                    case PAGE_FFST: 
+                        esq.o[selected_track].data[f].offset  += ((prior > current) ? -1 : 1); 
+                        if(esq.o[selected_track].data[f].offset > 0x7F) esq.o[selected_track].data[f].offset = 0x7F;
+                        else if(esq.o[selected_track].data[f].offset < -0x7F) esq.o[selected_track].data[f].offset = -0x7F;
+                        break;
+
+                    case PAGE_NOTE: 
+                        if(fabsf(cap)>1.0f)
+                        {
+                            esq.o[selected_track].data[f].degree -= cap; 
+                            if(esq.o[selected_track].data[f].degree > (esq.o[selected_track].scale.width - 1)) 
+                            esq.o[selected_track].data[f].degree = esq.o[selected_track].scale.width - 1;
+                            else if(esq.o[selected_track].data[f].degree <  0) esq.o[selected_track].data[f].degree = 0;
+                            cap = 0.0f;
+                        }
+                        break;
+                    default: 
+                        break;
+                }
+                note_from_degree(&esq.o[selected_track].scale, &esq.o[selected_track].data[f]);
+                repaint_display = true;
+            }
+
+            prior = current;
+        }
 
         if(refresh_display)
         {
-            ssd1306_show(&oled);
+            ssd1306_set_pixels(&oled);
             refresh_display = false;
-        }
+        }        
         else if(repaint_display)
         {
             char str[16];
             switch (page)
             {
-            case 0:
-                ssd1306_clear(&oled);
+            case PAGE_MAIN:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
 
                 sprintf(str, "BPM     : %d", esq.o[selected_track].bpm);
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
@@ -92,8 +143,8 @@ void core1_interrupt_handler()
                 refresh_display = true;
                 break;
             
-            case 1:
-                ssd1306_clear(&oled);
+            case PAGE_DRTN:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
 
                 ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
                 for(int i = 0; i < 16; i++)
@@ -107,9 +158,78 @@ void core1_interrupt_handler()
                 refresh_display = true;
                 break;
 
-            case 2:
+            case PAGE_AUTO:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+
+                ssd1306_print_string(&oled, 4, 0, "AUTOMATA", 0, 0);
+                for(int i = 0; i < 8; i++)
+                {
+                    switch (esq.ant[selected_track].rule[i])
+                    {
+                        case 0: ssd1306_glyph(&oled, circle_u_8x8, 8, 8, 4 + 16*i, 10); break;
+                        case 1: ssd1306_glyph(&oled, circle_r_8x8, 8, 8, 4 + 16*i, 10); break;
+                        case 2: ssd1306_glyph(&oled, circle_d_8x8, 8, 8, 4 + 16*i, 10); break;
+                        case 3: ssd1306_glyph(&oled, circle_l_8x8, 8, 8, 4 + 16*i, 10); break;
+                        default: break;
+                    }
+                }
+                for(int i = 0; i < 4; i++)
+                {
+                    if(((esq.ant[selected_track].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 20, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 4 + 32*i, 20, "X", 0, 0);
+                    if(((esq.ant[selected_track].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 20, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 20 + 32*i, 20, "X", 0, 0);
+                }
+                for(int i = 0; i < 8; i++)
+                {
+                    if(esq.ant[selected_track].step[i] > 0)
+                    ssd1306_print_char(&oled, 4 + 16*i, 30, 0xA3 + esq.ant[selected_track].step[i], 0);
+                    else
+                    ssd1306_print_char(&oled, 4 + 16*i, 30, 0xA3 + esq.ant[selected_track].step[i], 0);
+
+                }
+                // ssd1306_print_string(&oled, 56, 8, str, 0, 0);
+                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
+                str[selected_track*2] = '\x9B';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint_display = false;
+                refresh_display = true;
+                break;
+
+
+            case PAGE_VELO:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+
+                ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
+                for(int i = 0; i < 16; i++)
+                {
+                    ssd1306_progress_bar(&oled, esq.o[selected_track].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
+                }
+                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
+                str[selected_track*2] = '\x9B';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint_display = false;
+                refresh_display = true;
+                break;
+
+            case PAGE_FFST:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+
+                ssd1306_print_string(&oled, 4, 0, "OFFSET", 0, 0);
+                for(int i = 0; i < 16; i++)
+                {
+                    ssd1306_progress_cv_bar(&oled, esq.o[selected_track].data[i].offset, i*8 + 1, 10, 0xFF, 40, 6);
+                }
+                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
+                str[selected_track*2] = '\x9B';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint_display = false;
+                refresh_display = true;
+                break;
+
+            case PAGE_NOTE:
                 char s[1];
-                ssd1306_clear(&oled);
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
 
                 ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
                 ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected_track].scale.root], 0, 0);
@@ -146,8 +266,44 @@ void core1_interrupt_handler()
         {
             switch (_4067_iterator)
             {
-                case PGLFT: if(!hold[PGLFT]) { page--; repaint_display = true; hold[PGLFT] = true;} break;
-                case PGRGT: if(!hold[PGRGT]) { page++; repaint_display = true; hold[PGRGT] = true;} break;
+                case ENCDR:
+                    hold[ENCDR] = true;
+                    break;
+                case ALTGR:
+                    hold[ALTGR] = true;
+                    break;
+                case PGLFT: 
+                    if(!hold[PGLFT]) 
+                    { 
+                        if(hold[ALTGR])
+                        {
+                            selected_track--;
+                            if(selected_track < 0) selected_track = _tracks - 1;
+                        }
+                        else
+                        {
+                            page--; 
+                        }
+                        repaint_display = true; 
+                        hold[PGLFT] = true;
+                    } 
+                    break;
+                case PGRGT: 
+                    if(!hold[PGRGT]) 
+                    { 
+                        if(hold[ALTGR])
+                        {
+                            selected_track++;
+                            if(selected_track >= _tracks) selected_track = 0;
+                        }
+                        else
+                        {
+                            page++;
+                        }
+                        repaint_display = true; 
+                        hold[PGRGT] = true;
+                    } 
+                    break;
                 case MROW0: 
                     if(!hold_matrix[ccol]) 
                     { 
@@ -221,9 +377,8 @@ int main()
     gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(SDA_PIN);
     gpio_pull_up(SCL_PIN);
-    oled.external_vcc = false;
-    ssd1306_init(&oled, 128, 64, 0x3C, i2c1);
-    ssd1306_contrast(&oled, 20);
+    ssd1306_init(&oled, 0x3C, i2c1, BLACK);
+    ssd1306_set_full_rotation(&oled, 0);
     // MIDI DIN Init //////////////////////////////////////////////////////////
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
@@ -235,17 +390,14 @@ int main()
     // 4067 Init //////////////////////////////////////////////////////////////
     _4067_init();
     keypad_init();
-    // encoder_init(&ncoder, NCODER_A, NCODER_B);
     ncoder_index = quad_encoder_init();
     ///////////////////////////////////////////////////////////////////////////
     // Sequencer Init /////////////////////////////////////////////////////////
     srand(time_us_32());
     sequencer_init(&esq, 40);
-    sequencer_randomize(&esq, 0);
-    ant_init(&la);
-    element_init(&el);
+    for(int i = 0; i < _tracks; i++) sequencer_randomize(&esq, i);
     repaint_display = true;
-    page = 3;
+    page = 0;
     uint32_t rv[_tracks]; // Revolution counters
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
@@ -287,14 +439,14 @@ int main()
                     gate[i] = false;
                 }
             }
-        }
-
-        if(rv[0] != esq.o[0].revolutions)
-        {
-            // ant_evolve(&la);
-            // for(int i = 0; i < 16; i++) esq.o[0].trigger[i] = la.field[i];
-            esq.o[0].regenerate[0] = false;
-            rv[0] = esq.o[0].revolutions;
+            // AUTOMATA //////////////////////////////////////////////////////////////
+            if(rv[i] != esq.o[i].revolutions)
+            {
+                automata_evolve(&esq.ant[i]);
+                for(int j = 0; j < 16; j++) esq.o[i].trigger[j] = esq.ant[i].field[j];
+                esq.o[i].regenerate[i] = false;
+                rv[i] = esq.o[i].revolutions;
+            }
         }
         multicore_fifo_push_blocking(0);        
     }
@@ -319,17 +471,13 @@ void send(uint8_t id, uint8_t status) // Send MIDI message
     default:
         break;
     }
-    if(page == 3)
+    if(page == PAGE_LOG_)
     {
-        
         char str[16];
-        // encoder_read(&ncoder);
-        sprintf(str, "NC :%d", get_count(&ncoder, ncoder_index));
-        // sprintf(str, "NC :%d", ncoder.prior);
-        // if(status == 0x80)
-        // sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-        // if(status == 0x90)
-        // sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+        if(status == 0x80)
+        sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+        if(status == 0x90)
+        sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
         ssd1306_log(&oled, str, 0, 0);
     }
 }

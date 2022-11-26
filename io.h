@@ -23,24 +23,26 @@ ssd1306_t oled;
 
 #define PGLFT  4 // Page Left
 #define PGRGT  5 // Page Right
-// Encoder
+#define ALTGR  6 // Upper alt
+#define ENCDR  7 // Encoder button
+#define N4067  8 // 4067 Inputs
+// Encoder //////////////////////////
 #define NCODER_A 9
 #define NCODER_B 10
 // encoder ncoder;
 quadrature_decoder ncoder;
 int32_t ncoder_index;
-// Button matrix columns: GPIOs
+// Button matrix columns: GPIOs ////
 #define MCOL0  17
 #define MCOL1  20
 #define MCOL2  21
 #define MCOL3  22
-// Button matrix rows: 4067
-#define MROW0 0
-#define MROW1 1
-#define MROW2 2
-#define MROW3 3
+// Button matrix rows: 4067 ////////
+#define MROW0   0
+#define MROW1   1
+#define MROW2   2
+#define MROW3   3
 
-#define PAGES 4
 volatile uint8_t _4067_iterator = 4;
 const uint8_t _matrix[4] = { MCOL0, MCOL1, MCOL2, MCOL3};
 

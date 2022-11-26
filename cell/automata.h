@@ -6,16 +6,17 @@
 // Langtons Ant /////////////////////////////////////////////////////
 #define ROWS  4
 #define COLS  4
-#define LANGTONS_ANT 0b00000000010101010110110011000110
+
 typedef struct
 {
     int current;
     bool field[ROWS * COLS];
-    int step[8];
-    uint32_t rule;
+    int8_t rule[16];
+    int8_t step[8];
     int pos[2];
+    int iterations;
 
-} ant;
+} automata;
 
 
 typedef struct
@@ -29,6 +30,6 @@ typedef struct
 void element_init(element* o);
 void evolve(element* o);
 
-void ant_evolve(ant* o);
-void ant_clr(ant* o);
-void ant_init(ant* o);
+void automata_evolve(automata* o);
+void automata_clr(automata* o);
+void automata_init(automata* o);

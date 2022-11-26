@@ -60,12 +60,12 @@ typedef struct
 
 typedef struct
 {
-    uint8_t chroma;     // MIDI Note number
-    uint8_t degree;     // Scale degree 0 - 11
-    uint8_t octave;     // Octave 1 == Sub Contra
-    uint8_t value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
-    uint8_t velocity;   // MIDI Velocity 0-127
-    int8_t  offset;     // Time offset in ms
+    int_fast16_t chroma;     // MIDI Note number
+    int_fast16_t degree;     // Scale degree 0 - 11
+    int_fast16_t octave;     // Octave 1 == Sub Contra
+    int_fast16_t value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
+    int_fast16_t velocity;   // MIDI Velocity 0-127
+    int_fast16_t offset;     // Time offset in ms
     bool recount;       // Set chroma flag
 
 } note;

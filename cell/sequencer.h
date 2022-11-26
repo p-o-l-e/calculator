@@ -25,9 +25,10 @@
 #include "utility.h"
 #include "scale.h"
 #include "midi.h"
+#include "automata.h"
 
-#define _tracks 2  // Number of tracks
-#define _steps  16 // Maximum umber of steps
+#define _tracks 4  // Number of tracks
+#define _steps  16 // Maximum number of steps
 
 
 // Beat length (16 steps) = quarter = 60000ms/BPM
@@ -60,6 +61,7 @@ typedef struct
 
 typedef struct 
 {
+    automata ant[_tracks];
     track o[_tracks];
     uint8_t state;
 

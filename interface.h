@@ -6,6 +6,16 @@
 #include "CD74HC4067.h"
 #include "littlefs/fio.h"
 
+#define PAGE_MAIN 0
+#define PAGE_NOTE 1
+#define PAGE_VELO 2
+#define PAGE_DRTN 3
+#define PAGE_FFST 4
+#define PAGE_AUTO 5
+#define PAGE_LOG_ 6
+#define PAGES     6
+
+
 sequencer esq;
 uint16_t point[_tracks];
 static lfs_t      lfs;
