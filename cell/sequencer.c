@@ -29,6 +29,7 @@ void track_init(track* o)
     o->mode     = 0;
     o->steps    = _steps;
     o->revolutions = 0;
+    o->freerun = false;
     for(int i = 0; i < _steps; i++)
     {
         o->data[i].degree   = 0;
@@ -125,9 +126,12 @@ void (*loop_sequence[])(track*) =
 void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
 {
     o->o[track].bpm  = bpm;
-    o->o[track].beat = 60000/o->o[track].bpm;
-    o->o[track].step = o->o[track].beat/4;
-    o->o[track].atom = o->o[track].step/32;
+    if(bpm > 800)   bpm = 800;
+    if(bpm <   1)   bpm = 1;
+    o->o[track].beat = roundf(60000.0f/(float)o->o[track].bpm);
+    o->o[track].step = roundf((float)(o->o[track].beat)/4.0f);
+    o->o[track].atom = roundf((float)(o->o[track].step)/32.0f);
+    if(o->o[track].atom == 0) o->o[track].atom = 1;
 }
 
 void sequencer_init(sequencer* o, uint16_t bpm)
@@ -165,7 +169,7 @@ void sequencer_randomize(sequencer* o, uint8_t _track)
     for(int i = 0; i < _steps; i++)
     {
         o->o[_track].data[i].value    = rand_in_range(1,  32);
-        o->o[_track].data[i].offset   = rand_in_range(-0x7F,  0x7F);
+        o->o[_track].data[i].offset   = 0;//rand_in_range(-0x7F,  0x7F);
         o->o[_track].data[i].degree   = rand_in_range(0,    11);
         o->o[_track].data[i].octave   = rand_in_range(0,     8);
         o->o[_track].data[i].velocity = rand_in_range(0,  0x7F);

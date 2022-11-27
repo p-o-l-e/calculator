@@ -42,13 +42,15 @@ volatile absolute_time_t gts[_tracks]; // Gate OFF
 volatile bool gate[_tracks]; // OFF is pending
 
 void swith_led();
+void scale_led();
 void arm(uint32_t lag);
 void send(uint8_t id, uint8_t status);
 
 int32_t prior = 0;
 float cap = 0.0f;
 bool tap_armed = false;
-uint32_t tap[2];
+uint_fast8_t last;
+uint32_t tap;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -140,17 +142,21 @@ void core1_interrupt_handler()
             switch (page)
             {
             case PAGE_MAIN:
+                int line = 0;
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-
-                sprintf(str, "BPM     : %d", esq.o[selected_track].bpm);
+                char* lsel[] = {" ", "\x91"};
+                char* mode[] = {"FWD", "BWD", "PNG", "RND"};
+                sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected_track].bpm);
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
-                sprintf(str, "STEPS   : %d", esq.o[selected_track].steps);
+                sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].steps);
                 ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                sprintf(str, "CHANNEL : %d", esq.o[selected_track].channel);
+                sprintf(str, "%s CHANNEL : %d",(line==2)?lsel[1]:lsel[0], esq.o[selected_track].channel);
                 ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "MODE    : %d", esq.o[selected_track].mode);
+                sprintf(str, "%s MODE    : %s",(line==3)?lsel[1]:lsel[0], mode[esq.o[selected_track].mode]);
                 ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                sprintf(str, "FREERUN : %d", esq.o[selected_track].freerun);
+                sprintf(str, "%s FREERUN : %s",(line==4)?lsel[1]:lsel[0], esq.o[selected_track].freerun ? "ON" : "OFF");
+                // ssd1306_print_string(&oled, 4, 40, str, 0, 0);
+                // sprintf(str, "FREERUN : %d", esq.o[selected_track].freerun);
                 ssd1306_print_string(&oled, 4, 40, str, 0, 0);
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
@@ -176,32 +182,32 @@ void core1_interrupt_handler()
 
             case PAGE_AUTO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-
-                ssd1306_print_string(&oled, 4, 0, "AUTOMATA", 0, 0);
+                sprintf(str, "AUTOMATA : %s", esq.o[selected_track].regenerate[0]? "ON":"OFF");
+                ssd1306_print_string(&oled, 4, 0, str, 0, 0);
                 for(int i = 0; i < 8; i++)
                 {
                     switch (esq.ant[selected_track].rule[i])
                     {
-                        case 0: ssd1306_glyph(&oled, circle_u_8x8, 8, 8, 4 + 16*i, 10); break;
-                        case 1: ssd1306_glyph(&oled, circle_r_8x8, 8, 8, 4 + 16*i, 10); break;
-                        case 2: ssd1306_glyph(&oled, circle_d_8x8, 8, 8, 4 + 16*i, 10); break;
-                        case 3: ssd1306_glyph(&oled, circle_l_8x8, 8, 8, 4 + 16*i, 10); break;
+                        case 0: ssd1306_glyph(&oled, circle_u_8x8, 8, 8, 4 + 16*i, 20); break;
+                        case 1: ssd1306_glyph(&oled, circle_r_8x8, 8, 8, 4 + 16*i, 20); break;
+                        case 2: ssd1306_glyph(&oled, circle_d_8x8, 8, 8, 4 + 16*i, 20); break;
+                        case 3: ssd1306_glyph(&oled, circle_l_8x8, 8, 8, 4 + 16*i, 20); break;
                         default: break;
                     }
                 }
                 for(int i = 0; i < 4; i++)
                 {
-                    if(((esq.ant[selected_track].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 20, "Y", 0, 0);
-                    else ssd1306_print_string(&oled, 4 + 32*i, 20, "X", 0, 0);
-                    if(((esq.ant[selected_track].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 20, "Y", 0, 0);
-                    else ssd1306_print_string(&oled, 20 + 32*i, 20, "X", 0, 0);
+                    if(((esq.ant[selected_track].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 4 + 32*i, 30, "X", 0, 0);
+                    if(((esq.ant[selected_track].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 20 + 32*i, 30, "X", 0, 0);
                 }
                 for(int i = 0; i < 8; i++)
                 {
                     if(esq.ant[selected_track].step[i] > 0)
-                    ssd1306_print_char(&oled, 4 + 16*i, 30, 0xA3 + esq.ant[selected_track].step[i], 0);
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.ant[selected_track].step[i], 0);
                     else
-                    ssd1306_print_char(&oled, 4 + 16*i, 30, 0xA3 + esq.ant[selected_track].step[i], 0);
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.ant[selected_track].step[i], 0);
                 }
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
@@ -285,26 +291,87 @@ void core1_interrupt_handler()
                 break;
             }
         }       
-        swith_led();
+        if(hold[BTNUP])
+        {
+            if(page == PAGE_NOTE) scale_led();
+            else swith_led();
+        }
+        else swith_led();
 
         if(_4067_get())
         {
             switch (_4067_iterator)
             {
                 case SHIFT:
-                    hold[SHIFT] = true;
-                    tap[0] = time_us_32();
-                    // if(tap_armed)
-                    // {
-
-                    // }
+                    if(!hold[SHIFT]) 
+                    {
+                        if(tap_armed)
+                        {   
+                            if(last != SHIFT) tap_armed = false;
+                            int_fast32_t bpm = (esq.o[selected_track].bpm + 60000000/(time_us_32() - tap))/2;
+                            reset_timestamp(&esq, selected_track, bpm);
+                            if(!esq.o[selected_track].freerun)
+                            {
+                                for(int i = 0; i < _tracks; i++)
+                                {
+                                    if(!esq.o[i].freerun)
+                                    {
+                                        esq.o[i].bpm  = esq.o[selected_track].bpm;
+                                        esq.o[i].beat = esq.o[selected_track].beat;
+                                        esq.o[i].step = esq.o[selected_track].step;
+                                        esq.o[i].atom = esq.o[selected_track].atom;
+                                    }
+                                }
+                            }                            
+                            repaint_display = true;
+                        }
+                        if(hold[ALTGR])
+                        if(page == PAGE_AUTO) { automata_rand(&esq.ant[selected_track]); repaint_display = true; }
+                        hold[SHIFT] = true;
+                    }
+                    last = SHIFT;
+                    tap = time_us_32();
                     break;
+
                 case ENCDR:
                     hold[ENCDR] = true;
+                    last = ENCDR;
                     break;
+
                 case ALTGR:
-                    hold[ALTGR] = true;
+                    if(!hold[ALTGR]) 
+                    { 
+                        hold[ALTGR] = true;
+                    }
+                    last = ALTGR;
                     break;
+
+                case BTNUP:
+                    if(!hold[BTNUP]) 
+                    { 
+                        if(hold[ALTGR])
+                        {
+                            if(page==PAGE_AUTO) 
+                            {
+                                esq.o[selected_track].regenerate[0] ^= 1;
+                                repaint_display = true;
+                            }
+                        }
+                        hold[BTNUP] = true;
+                    }
+                    last = BTNUP;
+                    break;
+
+                case BTNCT:
+                    hold[BTNCT] = true;
+                    last = BTNCT;
+                    break;
+
+                case BTNDW:
+                    hold[BTNDW] = true;
+                    last = BTNDW;
+                    break;
+
                 case PGLFT: 
                     if(!hold[PGLFT]) 
                     { 
@@ -320,7 +387,9 @@ void core1_interrupt_handler()
                         repaint_display = true; 
                         hold[PGLFT] = true;
                     } 
+                    last = PGLFT;
                     break;
+
                 case PGRGT: 
                     if(!hold[PGRGT]) 
                     { 
@@ -336,34 +405,97 @@ void core1_interrupt_handler()
                         repaint_display = true; 
                         hold[PGRGT] = true;
                     } 
+                    last = PGRGT;
                     break;
+
                 case MROW0: 
                     if(!hold_matrix[ccol]) 
                     { 
-                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol] = !esq.o[selected_track].trigger[ccol]; 
+                        if(hold[BTNUP]) 
+                        {   
+                            if(page == PAGE_NOTE)
+                            {
+                                if(hold[ALTGR]) 
+                                {
+                                    esq.o[selected_track].scale.root = ccol&3;
+                                    set_scale(&esq.o[selected_track].scale);
+                                    repaint_display = true;
+                                }
+                                else
+                                {
+                                    esq.o[selected_track].scale.data ^= (0x800 >> (ccol&3));
+                                    set_scale(&esq.o[selected_track].scale);
+                                    repaint_display = true;
+                                }
+                            }
+                        }
+                        else if(hold[SHIFT]) esq.o[selected_track].trigger[ccol] = !esq.o[selected_track].trigger[ccol]; 
                         hold_matrix[ccol] = true; 
                     } 
+                    last = MROW0;
                     break;
+
                 case MROW1: 
                     if(!hold_matrix[ccol + 4]) 
                     { 
+                        if(hold[BTNUP]) 
+                        {   
+                            if(page == PAGE_NOTE)
+                            {
+                                if(hold[ALTGR]) 
+                                {
+                                    esq.o[selected_track].scale.root = ((ccol&3) + 4);
+                                    set_scale(&esq.o[selected_track].scale);
+                                    repaint_display = true;
+                                }
+                                else
+                                {
+                                    esq.o[selected_track].scale.data ^= (0x80 >> (ccol&3));
+                                    set_scale(&esq.o[selected_track].scale);
+                                    repaint_display = true;
+                                }
+                            }
+                        }
                         if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 4] = !esq.o[selected_track].trigger[ccol + 4]; 
                         hold_matrix[ccol + 4] = true; 
                     } 
+                    last = MROW1;
                     break;
+
                 case MROW2: 
                     if(!hold_matrix[ccol + 8]) 
                     { 
+                        if(hold[BTNUP]) 
+                        {   
+                            if(page == PAGE_NOTE)
+                            {
+                                if(hold[ALTGR]) 
+                                {
+                                    esq.o[selected_track].scale.root = ((ccol&3) + 8);
+                                    set_scale(&esq.o[selected_track].scale);
+                                    repaint_display = true;
+                                }
+                                else
+                                {
+                                    esq.o[selected_track].scale.data ^= (0x8 >> (ccol&3));
+                                    set_scale(&esq.o[selected_track].scale);
+                                    repaint_display = true;
+                                }
+                            }
+                        }
                         if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 8] = !esq.o[selected_track].trigger[ccol + 8]; 
                         hold_matrix[ccol + 8] = true; 
                     } 
+                    last = MROW2;
                     break;
+
                 case MROW3: 
                     if(!hold_matrix[ccol + 12]) 
                     { 
                         if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 12] = !esq.o[selected_track].trigger[ccol + 12]; 
                         hold_matrix[ccol + 12] = true; 
                     } 
+                    last = MROW3;
                     break;
                 default: break;
             }
@@ -373,6 +505,11 @@ void core1_interrupt_handler()
         else 
         {
             if(_4067_iterator < 4) hold_matrix[_4067_iterator * 4 + ccol] = false;
+            else if(_4067_iterator == SHIFT) 
+            { 
+                if(last == SHIFT) tap_armed = true;// tap = time_us_32(); 
+                hold[SHIFT] = false;
+            }
             else hold[_4067_iterator] = false;
         }
     }
@@ -473,13 +610,15 @@ int main()
                 }
             }
             // AUTOMATA //////////////////////////////////////////////////////////////
-            if(rv[i] != esq.o[i].revolutions)
+            if(esq.o[i].regenerate[0])
             {
-                for(int j = 0; j < 16; j++) esq.ant[i].field[j] = esq.o[i].trigger[j];
-                automata_evolve(&esq.ant[i]);
-                for(int j = 0; j < 16; j++) esq.o[i].trigger[j] = esq.ant[i].field[j];
-                esq.o[i].regenerate[i] = false;
-                rv[i] = esq.o[i].revolutions;
+                if(rv[i] != esq.o[i].revolutions)
+                {
+                    for(int j = 0; j < 16; j++) esq.ant[i].field[j] = esq.o[i].trigger[j];
+                    automata_evolve(&esq.ant[i]);
+                    for(int j = 0; j < 16; j++) esq.o[i].trigger[j] = esq.ant[i].field[j];
+                    rv[i] = esq.o[i].revolutions;
+                }
             }
         }
         multicore_fifo_push_blocking(0);        
@@ -574,5 +713,19 @@ void swith_led()
         led = 0;
         _74HC595_set_all_low(&sr);
         pset(&sr, esq.o[selected_track].current&3, esq.o[selected_track].current>>2, 2);
+    }
+}
+
+void scale_led()
+{
+    static uint8_t led;
+    _74HC595_set_all_low(&sr);
+    if((esq.o[selected_track].scale.data&(0x800>>led))) pset(&sr, led&3, led>>2, 2);
+    led++;
+    if(led > 11) 
+    {
+        led = 0;
+        _74HC595_set_all_low(&sr);
+        pset(&sr, esq.o[selected_track].scale.root &3, esq.o[selected_track].scale.root >>2, 4);
     }
 }

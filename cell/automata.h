@@ -33,3 +33,4 @@ void evolve(element* o);
 void automata_evolve(automata* o);
 void automata_clr(automata* o);
 void automata_init(automata* o);
+void automata_rand(automata* o);

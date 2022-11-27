@@ -93,18 +93,19 @@ void automata_init(automata* o)
     o->rule[ 9] = 0b01;
     o->rule[10] = 0b01; 
     o->rule[11] = 0b01;
+    
+    o->iterations = 1;
+    automata_clr(o);
+}
 
-    o->iterations = 3;
-
+void automata_rand(automata* o)
+{
     o->pos[0]   = rand_in_range(0, COLS-1);
     o->pos[1]   = rand_in_range(0, ROWS-1);
     o->current  = rand_in_range(0, 0b11);
     for(int i = 0; i < 12; i++) o->rule[i] = rand_in_range( 0, 3);
     for(int i = 0; i <  8; i++) o->step[i] = rand_in_range(-3, 3);
-    automata_clr(o);
 }
-
-
 
 
 void element_init(element* o)
