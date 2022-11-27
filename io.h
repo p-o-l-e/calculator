@@ -21,22 +21,27 @@ CD74HC595 sr;
 #define OLED_HEIGHT 64
 ssd1306_t oled;
 
-#define PGLFT  4 // Page Left
-#define PGRGT  5 // Page Right
-#define ALTGR  6 // Upper alt
-#define ENCDR  7 // Encoder button
-#define N4067  8 // 4067 Inputs
+#define PGLFT   4   // Page Left
+#define PGRGT   5   // Page Right
+#define ALTGR   6   // Upper alt
+#define ENCDR   7   // Encoder button
+#define BTNUP   8
+#define BTNCT   9
+#define BTNDW   10
+#define SHIFT   11
+
+
+#define N4067   12  // 4067 Inputs
 // Encoder //////////////////////////
-#define NCODER_A 9
-#define NCODER_B 10
-// encoder ncoder;
+#define NCODER_A    9
+#define NCODER_B    10
 quadrature_decoder ncoder;
 int32_t ncoder_index;
 // Button matrix columns: GPIOs ////
-#define MCOL0  17
-#define MCOL1  20
-#define MCOL2  21
-#define MCOL3  22
+#define MCOL0   17
+#define MCOL1   20
+#define MCOL2   21
+#define MCOL3   22
 // Button matrix rows: 4067 ////////
 #define MROW0   0
 #define MROW1   1
@@ -59,8 +64,8 @@ uint8_t keypad_switch()
 {
     static uint8_t f;
     static uint8_t column;
-    if(column > 3) column = 0;
     if(f > 3) { f = 0; column++; }
+    if(column > 3) column = 0;
     for(int i = 0; i < 4; i++)
     {
         if(i == column) gpio_put(_matrix[i], 1);

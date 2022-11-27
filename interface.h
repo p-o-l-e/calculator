@@ -12,7 +12,8 @@
 #define PAGE_DRTN 3
 #define PAGE_FFST 4
 #define PAGE_AUTO 5
-#define PAGE_LOG_ 6
+#define PAGE_DRFT 6
+#define PAGE_LOG_ 7
 #define PAGES     6
 
 

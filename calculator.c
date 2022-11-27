@@ -47,6 +47,8 @@ void send(uint8_t id, uint8_t status);
 
 int32_t prior = 0;
 float cap = 0.0f;
+bool tap_armed = false;
+uint32_t tap[2];
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -76,19 +78,22 @@ void core1_interrupt_handler()
                 switch (page)
                 {
                     case PAGE_DRTN: 
-                        esq.o[selected_track].data[f].value  += ((prior > current) ? -1 : 1); 
+                        if(hold[ENCDR]) esq.o[selected_track].data[f].value += ((prior > current) ? -3 : 3);
+                        else esq.o[selected_track].data[f].value += ((prior > current) ? -1 : 1);
                         if(esq.o[selected_track].data[f].value > 0xFF) esq.o[selected_track].data[f].value = 0xFF;
                         else if(esq.o[selected_track].data[f].value < 1) esq.o[selected_track].data[f].value = 1;
                         break;
 
                     case PAGE_VELO: 
-                        esq.o[selected_track].data[f].velocity  += ((prior > current) ? -1 : 1); 
+                        if(hold[ENCDR]) esq.o[selected_track].data[f].velocity  += ((prior > current) ? -3 : 3);
+                        else esq.o[selected_track].data[f].velocity  += ((prior > current) ? -1 : 1);
                         if(esq.o[selected_track].data[f].velocity > 0x7F) esq.o[selected_track].data[f].velocity = 0x7F;
                         else if(esq.o[selected_track].data[f].velocity < 1) esq.o[selected_track].data[f].velocity = 1;
                         break;
 
                     case PAGE_FFST: 
-                        esq.o[selected_track].data[f].offset  += ((prior > current) ? -1 : 1); 
+                        if(hold[ENCDR]) esq.o[selected_track].data[f].offset  += ((prior > current) ? -3 : 3);
+                        else esq.o[selected_track].data[f].offset  += ((prior > current) ? -1 : 1);
                         if(esq.o[selected_track].data[f].offset > 0x7F) esq.o[selected_track].data[f].offset = 0x7F;
                         else if(esq.o[selected_track].data[f].offset < -0x7F) esq.o[selected_track].data[f].offset = -0x7F;
                         break;
@@ -96,11 +101,21 @@ void core1_interrupt_handler()
                     case PAGE_NOTE: 
                         if(fabsf(cap)>1.0f)
                         {
-                            esq.o[selected_track].data[f].degree -= cap; 
-                            if(esq.o[selected_track].data[f].degree > (esq.o[selected_track].scale.width - 1)) 
-                            esq.o[selected_track].data[f].degree = esq.o[selected_track].scale.width - 1;
-                            else if(esq.o[selected_track].data[f].degree <  0) esq.o[selected_track].data[f].degree = 0;
+                            if(hold[ENCDR]) 
+                            {
+                                esq.o[selected_track].data[f].octave -= cap;
+                                if(esq.o[selected_track].data[f].octave > 9) esq.o[selected_track].data[f].octave = 9;
+                                else if(esq.o[selected_track].data[f].octave < 0) esq.o[selected_track].data[f].octave = 0;
+                            }
+                            else 
+                            {
+                                esq.o[selected_track].data[f].degree -= cap;
+                                if(esq.o[selected_track].data[f].degree > (esq.o[selected_track].scale.width - 1)) 
+                                esq.o[selected_track].data[f].degree = esq.o[selected_track].scale.width - 1;
+                                else if(esq.o[selected_track].data[f].degree <  0) esq.o[selected_track].data[f].degree = 0;
+                            }
                             cap = 0.0f;
+                            esq.o[selected_track].data[f].recount = true;
                         }
                         break;
                     default: 
@@ -117,7 +132,8 @@ void core1_interrupt_handler()
         {
             ssd1306_set_pixels(&oled);
             refresh_display = false;
-        }        
+        }
+        // REPAINT ////////////////////////////////////////////////////////////////////////////////
         else if(repaint_display)
         {
             char str[16];
@@ -186,9 +202,7 @@ void core1_interrupt_handler()
                     ssd1306_print_char(&oled, 4 + 16*i, 30, 0xA3 + esq.ant[selected_track].step[i], 0);
                     else
                     ssd1306_print_char(&oled, 4 + 16*i, 30, 0xA3 + esq.ant[selected_track].step[i], 0);
-
                 }
-                // ssd1306_print_string(&oled, 56, 8, str, 0, 0);
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
@@ -205,6 +219,17 @@ void core1_interrupt_handler()
                 {
                     ssd1306_progress_bar(&oled, esq.o[selected_track].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
                 }
+                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
+                str[selected_track*2] = '\x9B';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint_display = false;
+                refresh_display = true;
+                break;
+
+            case PAGE_DRFT:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 4, 0, "DRIFT", 0, 0);
+
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
@@ -266,6 +291,14 @@ void core1_interrupt_handler()
         {
             switch (_4067_iterator)
             {
+                case SHIFT:
+                    hold[SHIFT] = true;
+                    tap[0] = time_us_32();
+                    // if(tap_armed)
+                    // {
+
+                    // }
+                    break;
                 case ENCDR:
                     hold[ENCDR] = true;
                     break;
@@ -307,28 +340,28 @@ void core1_interrupt_handler()
                 case MROW0: 
                     if(!hold_matrix[ccol]) 
                     { 
-                        esq.o[selected_track].trigger[ccol] = !esq.o[selected_track].trigger[ccol]; 
+                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol] = !esq.o[selected_track].trigger[ccol]; 
                         hold_matrix[ccol] = true; 
                     } 
                     break;
                 case MROW1: 
                     if(!hold_matrix[ccol + 4]) 
                     { 
-                        esq.o[selected_track].trigger[ccol + 4] = !esq.o[selected_track].trigger[ccol + 4]; 
+                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 4] = !esq.o[selected_track].trigger[ccol + 4]; 
                         hold_matrix[ccol + 4] = true; 
                     } 
                     break;
                 case MROW2: 
                     if(!hold_matrix[ccol + 8]) 
                     { 
-                        esq.o[selected_track].trigger[ccol + 8] = !esq.o[selected_track].trigger[ccol + 8]; 
+                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 8] = !esq.o[selected_track].trigger[ccol + 8]; 
                         hold_matrix[ccol + 8] = true; 
                     } 
                     break;
                 case MROW3: 
                     if(!hold_matrix[ccol + 12]) 
                     { 
-                        esq.o[selected_track].trigger[ccol + 12] = !esq.o[selected_track].trigger[ccol + 12]; 
+                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 12] = !esq.o[selected_track].trigger[ccol + 12]; 
                         hold_matrix[ccol + 12] = true; 
                     } 
                     break;
@@ -339,8 +372,8 @@ void core1_interrupt_handler()
         }
         else 
         {
-            hold[_4067_iterator] = false;
             if(_4067_iterator < 4) hold_matrix[_4067_iterator * 4 + ccol] = false;
+            else hold[_4067_iterator] = false;
         }
     }
     multicore_fifo_clear_irq(); // Clear interrupt
@@ -394,7 +427,7 @@ int main()
     ///////////////////////////////////////////////////////////////////////////
     // Sequencer Init /////////////////////////////////////////////////////////
     srand(time_us_32());
-    sequencer_init(&esq, 40);
+    sequencer_init(&esq, 120);
     for(int i = 0; i < _tracks; i++) sequencer_randomize(&esq, i);
     repaint_display = true;
     page = 0;
@@ -442,6 +475,7 @@ int main()
             // AUTOMATA //////////////////////////////////////////////////////////////
             if(rv[i] != esq.o[i].revolutions)
             {
+                for(int j = 0; j < 16; j++) esq.ant[i].field[j] = esq.o[i].trigger[j];
                 automata_evolve(&esq.ant[i]);
                 for(int j = 0; j < 16; j++) esq.o[i].trigger[j] = esq.ant[i].field[j];
                 esq.o[i].regenerate[i] = false;
@@ -450,11 +484,42 @@ int main()
         }
         multicore_fifo_push_blocking(0);        
     }
+    while(esq.state == PAUSE) 
+	{
+        for(int i = 0; i < _tracks; i++)
+        {
+            if(time_reached(gts[i]))
+            {
+                if(gate[i])
+                {
+                    send(i, 0x80);
+                    gate[i] = false;
+                }
+            }
+        }
+        if(esq.state == PLAY) goto RUN;
+    }
+    while(esq.state == STOP) 
+	{
+        for(int i = 0; i < _tracks; i++)
+        {
+            if(time_reached(gts[i]))
+            {
+                if(gate[i])
+                {
+                    send(i, 0x80);
+                    gate[i] = false;
+                }
+            }
+        }
+        if(esq.state == PLAY) goto RUN;
+    }
+
     return 0;
 }
 
 
-void send(uint8_t id, uint8_t status) // Send MIDI message
+void send(uint8_t id, uint8_t status) // Send MIDI message /////////////////////
 {
     switch (status)
     {
@@ -482,7 +547,7 @@ void send(uint8_t id, uint8_t status) // Send MIDI message
     }
 }
 
-void arm(uint32_t lag) // Prepare to play routine
+void arm(uint32_t lag) // Prepare to play routine ////////////
 {
     int8_t f = esq.o[0].data[esq.o[0].current].offset;
     for(int i = 1; i < _tracks; i++)

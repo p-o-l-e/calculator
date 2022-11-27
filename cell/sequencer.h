@@ -45,13 +45,13 @@ typedef struct
     uint16_t bpm;       // Beats per minute
     uint8_t  channel;   // Track channel
     uint8_t  steps;     // Steps count
-    uint8_t  current;   // Current step
     uint8_t  mode;      // Loop mode
-    bool     trigger[_steps]; // NoteON bits
-    bool     regenerate[3]; // [0] Beat [1] Notes [3] Set scale
-    bool     reset;     // Recount timestamp
-    bool     freerun;
-    bool     on;
+    int_fast16_t current;   // Current step
+    bool trigger[_steps]; // NoteON bits
+    bool regenerate[3]; // [0] Beat [1] Notes [3] Set scale
+    bool reset;     // Recount timestamp
+    bool freerun;
+    bool on;
 
 } track;
 
@@ -92,5 +92,6 @@ void    sequencer_run(sequencer* o);
 void    sequencer_stop(sequencer* o);
 void    sequencer_pause(sequencer* o);
 void    sequencer_randomize(sequencer* o, uint8_t _track);
+void    sequencer_drift(sequencer* o, uint_fast8_t _track, uint_fast8_t velocity, uint_fast8_t offset);
 
 uint32_t get_timeout(sequencer* o, uint8_t track); // Time to the next step - NULL if timeline is clear

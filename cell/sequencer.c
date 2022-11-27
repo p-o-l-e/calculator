@@ -43,7 +43,6 @@ void track_init(track* o)
 void loop_forward(track* o)
 {
     o->current++;
-    // o->revolutions++;
     if(o->current >= o->steps) 
     {
         o->current = 0;
@@ -53,9 +52,8 @@ void loop_forward(track* o)
 
 void loop_backward(track* o)
 {
-    if(o->current > 0)
     o->current--;
-    else 
+    if(o->current < 0)
     {
         o->current = o->steps - 1;
         o->revolutions++;
@@ -77,9 +75,8 @@ void loop_pingpong(track* o)
     }
     else
     {
-        if(o->current > 0)
         o->current--;
-        else 
+        if(o->current < 0) 
         {
             f = true;
             o->current = 1;
@@ -173,5 +170,27 @@ void sequencer_randomize(sequencer* o, uint8_t _track)
         o->o[_track].data[i].octave   = rand_in_range(0,     8);
         o->o[_track].data[i].velocity = rand_in_range(0,  0x7F);
         note_from_degree(&o->o[_track].scale, &o->o[_track].data[i]);
+    }
+}
+
+void sequencer_drift(sequencer* o, uint_fast8_t _track, uint_fast8_t velocity, uint_fast8_t offset)
+{
+    if(velocity)
+    {
+        for(int i = 0; i < o->o[_track].steps; i++)
+        {
+            o->o[_track].data[i].velocity += rand_in_range(-velocity, velocity);
+            if(o->o[_track].data[i].velocity > 0x7F) o->o[_track].data[i].velocity = 0x7F;
+            else if(o->o[_track].data[i].velocity < 0) o->o[_track].data[i].velocity = 1;
+        }
+    }
+    if(offset)
+    {
+        for(int i = 0; i < o->o[_track].steps; i++)
+        {
+            o->o[_track].data[i].offset += rand_in_range(-offset, offset);
+            if(o->o[_track].data[i].offset > 0x7F) o->o[_track].data[i].offset = 0x7F;
+            else if(o->o[_track].data[i].offset < -0x7F) o->o[_track].data[i].offset = -0x7F;
+        }
     }
 }
