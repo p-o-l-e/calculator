@@ -123,14 +123,25 @@ void (*loop_sequence[])(track*) =
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Sequencer ///////////////////////////////////////////////////////////////////////
+// void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
+// {
+//     o->o[track].bpm  = bpm;
+//     if(bpm > 800)   bpm = 800;
+//     if(bpm <   1)   bpm = 1;
+//     o->o[track].beat = roundf(60000.0f/(float)o->o[track].bpm);
+//     o->o[track].step = roundf((float)(o->o[track].beat)/4.0f);
+//     o->o[track].atom = roundf((float)(o->o[track].step)/32.0f);
+//     if(o->o[track].atom == 0) o->o[track].atom = 1;
+// }
+
 void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
 {
     o->o[track].bpm  = bpm;
     if(bpm > 800)   bpm = 800;
     if(bpm <   1)   bpm = 1;
-    o->o[track].beat = roundf(60000.0f/(float)o->o[track].bpm);
-    o->o[track].step = roundf((float)(o->o[track].beat)/4.0f);
-    o->o[track].atom = roundf((float)(o->o[track].step)/32.0f);
+    o->o[track].beat = 60000/o->o[track].bpm;
+    o->o[track].step = o->o[track].beat/4.0f;
+    o->o[track].atom = o->o[track].step/32.0f;
     if(o->o[track].atom == 0) o->o[track].atom = 1;
 }
 
@@ -196,5 +207,13 @@ void sequencer_drift(sequencer* o, uint_fast8_t _track, uint_fast8_t velocity, u
             if(o->o[_track].data[i].offset > 0x7F) o->o[_track].data[i].offset = 0x7F;
             else if(o->o[_track].data[i].offset < -0x7F) o->o[_track].data[i].offset = -0x7F;
         }
+    }
+}
+
+void recount_all(sequencer* o, int track)
+{
+    for(int i = 0; i < _steps; i++)
+    {
+        note_from_degree(&o->o[track].scale, &o->o[track].data[i] );
     }
 }

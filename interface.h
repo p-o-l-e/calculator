@@ -14,6 +14,8 @@
 #define PAGE_AUTO 5
 #define PAGE_DRFT 6
 #define PAGE_LOG_ 7
+#define PAGE_NCDR 12
+
 #define PAGES     6
 
 

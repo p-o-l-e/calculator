@@ -34,7 +34,7 @@ ssd1306_t oled;
 #define N4067   12  // 4067 Inputs
 // Encoder //////////////////////////
 #define NCODER_A    9
-#define NCODER_B    10
+#define NCODER_B   10
 quadrature_decoder ncoder;
 int32_t ncoder_index;
 // Button matrix columns: GPIOs ////
@@ -79,6 +79,8 @@ int32_t quad_encoder_init()
 {
     gpio_init(NCODER_A);
     gpio_init(NCODER_B);
+    // gpio_set_dir(NCODER_A, GPIO_IN);
+    // gpio_set_dir(NCODER_B, GPIO_IN);
     gpio_pull_down(NCODER_A);
     gpio_pull_down(NCODER_B);
     quadrature_decoder_init(&ncoder, pio0);

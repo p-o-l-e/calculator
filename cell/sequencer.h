@@ -43,9 +43,9 @@ typedef struct
     uint32_t step;      // Step length
     uint32_t atom;      // Minimal note length
     uint16_t bpm;       // Beats per minute
-    uint8_t  channel;   // Track channel
-    uint8_t  steps;     // Steps count
-    uint8_t  mode;      // Loop mode
+    uint_fast8_t channel;   // Track channel
+    int_fast8_t  steps;     // Steps count
+    int_fast8_t  mode;      // Loop mode
     int_fast16_t current;   // Current step
     bool trigger[_steps]; // NoteON bits
     bool regenerate[3]; // [0] Beat [1] Notes [3] Set scale
@@ -64,6 +64,7 @@ typedef struct
     automata ant[_tracks];
     track o[_tracks];
     uint8_t state;
+    bool recount;
 
 } sequencer;
 
@@ -93,5 +94,5 @@ void    sequencer_stop(sequencer* o);
 void    sequencer_pause(sequencer* o);
 void    sequencer_randomize(sequencer* o, uint8_t _track);
 void    sequencer_drift(sequencer* o, uint_fast8_t _track, uint_fast8_t velocity, uint_fast8_t offset);
-
+void    recount_all(sequencer* o, int track);
 uint32_t get_timeout(sequencer* o, uint8_t track); // Time to the next step - NULL if timeline is clear

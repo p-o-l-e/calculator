@@ -51,6 +51,7 @@ float cap = 0.0f;
 bool tap_armed = false;
 uint_fast8_t last;
 uint32_t tap;
+int line = 0;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -62,10 +63,12 @@ void core1_interrupt_handler()
         if(_4067_iterator >= N4067) _4067_iterator = 0;
         _4067_switch(_4067_iterator, 0);
         uint8_t ccol = keypad_switch();
+        // ENCODER /////////////////////////////////////////////////////////////////////////////////////////
         int32_t current = get_count(&ncoder, ncoder_index);
         if(current!=prior)
         {
             int f = -1;
+            cap += ((float)(prior - current)*0.3f);
             for(int i = 0; i < 16; i++)
             {
                 if(hold_matrix[i])
@@ -76,7 +79,6 @@ void core1_interrupt_handler()
             }
             if(f >= 0) 
             {
-                cap += ((float)(prior - current)*0.33f);
                 switch (page)
                 {
                     case PAGE_DRTN: 
@@ -105,12 +107,14 @@ void core1_interrupt_handler()
                         {
                             if(hold[ENCDR]) 
                             {
+                                cap /= fabsf(cap);
                                 esq.o[selected_track].data[f].octave -= cap;
                                 if(esq.o[selected_track].data[f].octave > 9) esq.o[selected_track].data[f].octave = 9;
                                 else if(esq.o[selected_track].data[f].octave < 0) esq.o[selected_track].data[f].octave = 0;
                             }
                             else 
                             {
+                                cap /= fabsf(cap);
                                 esq.o[selected_track].data[f].degree -= cap;
                                 if(esq.o[selected_track].data[f].degree > (esq.o[selected_track].scale.width - 1)) 
                                 esq.o[selected_track].data[f].degree = esq.o[selected_track].scale.width - 1;
@@ -127,6 +131,49 @@ void core1_interrupt_handler()
                 repaint_display = true;
             }
 
+            else if(page == PAGE_MAIN)
+            {
+                switch(line)
+                {
+                    case 0: 
+                        if(fabsf(cap)>1.0f)
+                        {
+                            cap /= fabsf(cap);
+                            int bpm = esq.o[selected_track].bpm;
+                            bpm  -= cap;
+                            if(bpm > 800) bpm = 800;
+                            else if(bpm < 1) bpm = 1;
+                            reset_timestamp(&esq, selected_track, bpm);
+                            cap = 0.0f;
+                        }
+                        break;
+
+                    case 1: 
+                        if(fabsf(cap)>1.0f)
+                        {
+                            cap /= fabsf(cap);
+                            esq.o[selected_track].steps  -= cap;
+                            if(esq.o[selected_track].steps > 16) esq.o[selected_track].steps = 16;
+                            else if(esq.o[selected_track].steps < 2) esq.o[selected_track].steps = 2;
+                            cap = 0.0f;
+                        }
+                        break;
+
+                    case 2:
+                        if(fabsf(cap)>1.0f)
+                        {
+                            cap /= fabsf(cap);
+                            esq.o[selected_track].mode -= cap;
+                            if(esq.o[selected_track].mode > 3) esq.o[selected_track].mode = 3;
+                            else if(esq.o[selected_track].mode < 0) esq.o[selected_track].mode = 0;
+                            cap = 0.0f;
+                        }       
+                        break;         
+                    default:
+                        break;
+                }
+                repaint_display = true;
+            }
             prior = current;
         }
 
@@ -141,23 +188,25 @@ void core1_interrupt_handler()
             char str[16];
             switch (page)
             {
+            case PAGE_NCDR:
+                sprintf(str, "%d", current);
+                ssd1306_log(&oled, str, 200, 0);
+                refresh_display = true;
+
+                break;
             case PAGE_MAIN:
-                int line = 0;
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 char* lsel[] = {" ", "\x91"};
-                char* mode[] = {"FWD", "BWD", "PNG", "RND"};
                 sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected_track].bpm);
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
                 sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].steps);
                 ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                sprintf(str, "%s CHANNEL : %d",(line==2)?lsel[1]:lsel[0], esq.o[selected_track].channel);
+                char* mode[] = {"FWD", "BWD", "PNG", "RND"};
+                sprintf(str, "%s MODE    : %s",(line==2)?lsel[1]:lsel[0], mode[esq.o[selected_track].mode]);
                 ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "%s MODE    : %s",(line==3)?lsel[1]:lsel[0], mode[esq.o[selected_track].mode]);
+                sprintf(str, "%s FREERUN : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected_track].freerun ? "ON" : "OFF");
                 ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                sprintf(str, "%s FREERUN : %s",(line==4)?lsel[1]:lsel[0], esq.o[selected_track].freerun ? "ON" : "OFF");
-                // ssd1306_print_string(&oled, 4, 40, str, 0, 0);
-                // sprintf(str, "FREERUN : %d", esq.o[selected_track].freerun);
-                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
+
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
@@ -357,6 +406,12 @@ void core1_interrupt_handler()
                                 repaint_display = true;
                             }
                         }
+                        else if(page == PAGE_MAIN)
+                        {
+                            line--;
+                            if(line < 0) line = 3;
+                            repaint_display = true;
+                        }
                         hold[BTNUP] = true;
                     }
                     last = BTNUP;
@@ -368,7 +423,16 @@ void core1_interrupt_handler()
                     break;
 
                 case BTNDW:
-                    hold[BTNDW] = true;
+                    if(!hold[BTNDW])
+                    {
+                        if(page == PAGE_MAIN)
+                        {
+                            line++;
+                            if(line > 3) line = 0;
+                            repaint_display = true;
+                        }
+                        hold[BTNDW] = true;
+                    }
                     last = BTNDW;
                     break;
 
@@ -419,12 +483,14 @@ void core1_interrupt_handler()
                                 {
                                     esq.o[selected_track].scale.root = ccol&3;
                                     set_scale(&esq.o[selected_track].scale);
+                                    recount_all(&esq, selected_track);
                                     repaint_display = true;
                                 }
                                 else
                                 {
                                     esq.o[selected_track].scale.data ^= (0x800 >> (ccol&3));
                                     set_scale(&esq.o[selected_track].scale);
+                                    recount_all(&esq, selected_track);
                                     repaint_display = true;
                                 }
                             }
@@ -446,12 +512,14 @@ void core1_interrupt_handler()
                                 {
                                     esq.o[selected_track].scale.root = ((ccol&3) + 4);
                                     set_scale(&esq.o[selected_track].scale);
+                                    recount_all(&esq, selected_track);
                                     repaint_display = true;
                                 }
                                 else
                                 {
                                     esq.o[selected_track].scale.data ^= (0x80 >> (ccol&3));
                                     set_scale(&esq.o[selected_track].scale);
+                                    recount_all(&esq, selected_track);
                                     repaint_display = true;
                                 }
                             }
@@ -473,12 +541,14 @@ void core1_interrupt_handler()
                                 {
                                     esq.o[selected_track].scale.root = ((ccol&3) + 8);
                                     set_scale(&esq.o[selected_track].scale);
+                                    recount_all(&esq, selected_track);
                                     repaint_display = true;
                                 }
                                 else
                                 {
                                     esq.o[selected_track].scale.data ^= (0x8 >> (ccol&3));
                                     set_scale(&esq.o[selected_track].scale);
+                                    recount_all(&esq, selected_track);
                                     repaint_display = true;
                                 }
                             }
