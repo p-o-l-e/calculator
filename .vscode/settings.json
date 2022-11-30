@@ -38,6 +38,7 @@
         "compare": "cpp",
         "quadrature_decoder.h": "c",
         "quadrature_decoder.pio.h": "c",
-        "fio.h": "c"
+        "fio.h": "c",
+        "ratio": "c"
     }
 }

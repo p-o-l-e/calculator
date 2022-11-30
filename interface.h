@@ -16,7 +16,7 @@
 #define PAGE_LOG_ 7
 #define PAGE_NCDR 12
 
-#define PAGES     6
+#define PAGES     7
 
 
 sequencer esq;

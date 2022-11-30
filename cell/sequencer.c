@@ -29,7 +29,11 @@ void track_init(track* o)
     o->mode     = 0;
     o->steps    = _steps;
     o->revolutions = 0;
-    o->freerun = false;
+    o->freerun  = false;
+    o->drift[0] = 0;
+    o->drift[1] = 0;
+    o->drift[2] = 0;
+    o->drift[3] = 0;
     for(int i = 0; i < _steps; i++)
     {
         o->data[i].degree   = 0;
@@ -121,24 +125,11 @@ void (*loop_sequence[])(track*) =
     loop_random
 };
 
-////////////////////////////////////////////////////////////////////////////////////
-// Sequencer ///////////////////////////////////////////////////////////////////////
-// void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
-// {
-//     o->o[track].bpm  = bpm;
-//     if(bpm > 800)   bpm = 800;
-//     if(bpm <   1)   bpm = 1;
-//     o->o[track].beat = roundf(60000.0f/(float)o->o[track].bpm);
-//     o->o[track].step = roundf((float)(o->o[track].beat)/4.0f);
-//     o->o[track].atom = roundf((float)(o->o[track].step)/32.0f);
-//     if(o->o[track].atom == 0) o->o[track].atom = 1;
-// }
-
 void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
 {
-    o->o[track].bpm  = bpm;
-    if(bpm > 800)   bpm = 800;
-    if(bpm <   1)   bpm = 1;
+    o->o[track].bpm = bpm;
+    if(bpm > 800) bpm = 800;
+    if(bpm <   1) bpm = 1;
     o->o[track].beat = 60000/o->o[track].bpm;
     o->o[track].step = o->o[track].beat/4.0f;
     o->o[track].atom = o->o[track].step/32.0f;
@@ -170,10 +161,10 @@ void sequencer_init(sequencer* o, uint16_t bpm)
 //     return 0;
 // }
 
-void sequencer_randomize(sequencer* o, uint8_t _track)
+void sequencer_rand(sequencer* o, uint8_t _track)
 {
-    // uint16_t beat = rand_in_range(1, 0xFFFF);
-    // insert_bits(&o->o[_track], beat);
+    uint16_t beat = rand_in_range(1, 0xFFFF);
+    insert_bits(&o->o[_track], beat);
     o->o[_track].scale.data = rand_in_range(1, 0xFFF);
     o->o[_track].scale.root = rand_in_range(0,    11);
     set_scale(&o->o[_track].scale);
@@ -185,28 +176,6 @@ void sequencer_randomize(sequencer* o, uint8_t _track)
         o->o[_track].data[i].octave   = rand_in_range(0,     8);
         o->o[_track].data[i].velocity = rand_in_range(0,  0x7F);
         note_from_degree(&o->o[_track].scale, &o->o[_track].data[i]);
-    }
-}
-
-void sequencer_drift(sequencer* o, uint_fast8_t _track, uint_fast8_t velocity, uint_fast8_t offset)
-{
-    if(velocity)
-    {
-        for(int i = 0; i < o->o[_track].steps; i++)
-        {
-            o->o[_track].data[i].velocity += rand_in_range(-velocity, velocity);
-            if(o->o[_track].data[i].velocity > 0x7F) o->o[_track].data[i].velocity = 0x7F;
-            else if(o->o[_track].data[i].velocity < 0) o->o[_track].data[i].velocity = 1;
-        }
-    }
-    if(offset)
-    {
-        for(int i = 0; i < o->o[_track].steps; i++)
-        {
-            o->o[_track].data[i].offset += rand_in_range(-offset, offset);
-            if(o->o[_track].data[i].offset > 0x7F) o->o[_track].data[i].offset = 0x7F;
-            else if(o->o[_track].data[i].offset < -0x7F) o->o[_track].data[i].offset = -0x7F;
-        }
     }
 }
 

@@ -52,6 +52,7 @@ bool tap_armed = false;
 uint_fast8_t last;
 uint32_t tap;
 int line = 0;
+char* lsel[] = {" ", "\x91"};
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -174,6 +175,52 @@ void core1_interrupt_handler()
                 }
                 repaint_display = true;
             }
+
+            else if(page == PAGE_DRFT)
+            {
+                switch(line)
+                {
+                    case 0: 
+                        if(fabsf(cap)>1.0f)
+                        {
+                            esq.o[selected_track].drift[0] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected_track].drift[0] > 0x40) esq.o[selected_track].drift[0] = 0x40;
+                            else if(esq.o[selected_track].drift[0] < 0) esq.o[selected_track].drift[0] = 0;
+                            cap = 0.0f;
+                        }
+                        break;
+                    case 1:
+                        if(fabsf(cap)>1.0f)
+                        {
+                            esq.o[selected_track].drift[1] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected_track].drift[1] > 0x40) esq.o[selected_track].drift[1] = 0x40;
+                            else if(esq.o[selected_track].drift[1] < 0) esq.o[selected_track].drift[1] = 0;
+                            cap = 0.0f;
+                        }
+                        break;
+                    case 2:
+                        if(fabsf(cap)>1.0f)
+                        {
+                            esq.o[selected_track].drift[2] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected_track].drift[2] > 12) esq.o[selected_track].drift[2] = 12;
+                            else if(esq.o[selected_track].drift[2] < 0) esq.o[selected_track].drift[2] = 0;
+                            cap = 0.0f;
+                        }
+                    case 3:
+                        if(fabsf(cap)>1.0f)
+                        {
+                            esq.o[selected_track].drift[3] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected_track].drift[3] > 8) esq.o[selected_track].drift[3] = 8;
+                            else if(esq.o[selected_track].drift[3] < 0) esq.o[selected_track].drift[3] = 0;
+                            cap = 0.0f;
+                        }
+                        break;
+       
+                    default:
+                        break;
+                }
+                repaint_display = true;
+            }
             prior = current;
         }
 
@@ -192,11 +239,10 @@ void core1_interrupt_handler()
                 sprintf(str, "%d", current);
                 ssd1306_log(&oled, str, 200, 0);
                 refresh_display = true;
-
                 break;
+
             case PAGE_MAIN:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-                char* lsel[] = {" ", "\x91"};
                 sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected_track].bpm);
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
                 sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].steps);
@@ -284,6 +330,14 @@ void core1_interrupt_handler()
             case PAGE_DRFT:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4, 0, "DRIFT", 0, 0);
+                sprintf(str, "%s VELOCITY : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected_track].drift[0]);
+                ssd1306_print_string(&oled, 4, 10, str, 0, 0);
+                sprintf(str, "%s OFFSET   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].drift[1]);
+                ssd1306_print_string(&oled, 4, 20, str, 0, 0);
+                sprintf(str, "%s DEGREE   : %d",(line==2)?lsel[1]:lsel[0], esq.o[selected_track].drift[2]);
+                ssd1306_print_string(&oled, 4, 30, str, 0, 0);
+                sprintf(str, "%s OCTAVE   : %d",(line==3)?lsel[1]:lsel[0], esq.o[selected_track].drift[3]);
+                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
 
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
@@ -406,7 +460,7 @@ void core1_interrupt_handler()
                                 repaint_display = true;
                             }
                         }
-                        else if(page == PAGE_MAIN)
+                        else if((page == PAGE_MAIN) || (page == PAGE_DRFT))
                         {
                             line--;
                             if(line < 0) line = 3;
@@ -425,7 +479,7 @@ void core1_interrupt_handler()
                 case BTNDW:
                     if(!hold[BTNDW])
                     {
-                        if(page == PAGE_MAIN)
+                        if((page == PAGE_MAIN) || (page == PAGE_DRFT))
                         {
                             line++;
                             if(line > 3) line = 0;
@@ -635,7 +689,7 @@ int main()
     // Sequencer Init /////////////////////////////////////////////////////////
     srand(time_us_32());
     sequencer_init(&esq, 120);
-    for(int i = 0; i < _tracks; i++) sequencer_randomize(&esq, i);
+    for(int i = 0; i < _tracks; i++) sequencer_rand(&esq, i);
     repaint_display = true;
     page = 0;
     uint32_t rv[_tracks]; // Revolution counters
