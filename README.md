@@ -5,6 +5,7 @@
 - 4 modes (forward, backward, ping-pong, random)
 - Adjustable velocity, time offset and duration for each note
 - Langton's ant like cellular automata with user-defined rules
+- Scale/Root auto align
 - Adjustable drift // TODO
 
 <a href="./hardware/front.png"><img width=300 src="./hardware/front.png"/></a>
