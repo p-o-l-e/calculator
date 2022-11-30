@@ -1,4 +1,4 @@
-# RP2040 MIDI Sequencer
+# Generative MIDI Sequencer
 - 2-16 Steps
 - 8 Tracks - each for dedicated midi-channel
 - USB/DIN5 Output
