@@ -19,12 +19,11 @@
 #define PAGES     7
 
 
-sequencer esq;
-uint16_t point[_tracks];
+
 static lfs_t      lfs;
 static lfs_file_t INIT;
 
-int load_init()
+int load_init(sequencer* sq)
 {
     int err = lfs_mount(&lfs, &CFG);
 
@@ -34,11 +33,11 @@ int load_init()
         lfs_mount (&lfs, &CFG);
 
         lfs_file_open (&lfs, &INIT, "PRESETS", LFS_O_RDWR | LFS_O_CREAT);
-        lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+        lfs_file_write(&lfs, &INIT, sq, sizeof(sq));
         lfs_file_close(&lfs, &INIT);
     }
     lfs_file_open(&lfs, &INIT, "PRESETS", LFS_O_RDWR);
-    lfs_file_read(&lfs, &INIT, &esq, sizeof(esq));
+    lfs_file_read(&lfs, &INIT, sq, sizeof(sq));
 
     lfs_file_close(&lfs, &INIT);
     lfs_unmount(&lfs);
@@ -46,7 +45,7 @@ int load_init()
 
 
 
-int load_file(int n, const char* path)
+int load_file(int n, const char* path, sequencer* sq)
 {
     int err = lfs_mount(&lfs, &CFG);
     if (err) 
@@ -55,13 +54,13 @@ int load_file(int n, const char* path)
         lfs_mount (&lfs, &CFG);
 
         lfs_file_open (&lfs, &INIT, path, LFS_O_RDWR | LFS_O_CREAT);
-        lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+        lfs_file_write(&lfs, &INIT, sq, sizeof(sq));
         lfs_file_close(&lfs, &INIT);
     }
 
     if(lfs_file_open (&lfs, &INIT, path, LFS_O_RDWR) == 0)
     {
-        lfs_file_read (&lfs, &INIT, &esq, sizeof(esq));
+        lfs_file_read (&lfs, &INIT, sq, sizeof(sq));
         lfs_file_close(&lfs, &INIT);
     }
 
@@ -69,22 +68,22 @@ int load_file(int n, const char* path)
 }
 
 
-int save_file(int n, const char* path)
+int save_file(int n, const char* path, sequencer* sq)
 {
     int err = lfs_mount(&lfs, &CFG);
     lfs_file_open (&lfs, &INIT, path, LFS_O_RDWR | LFS_O_CREAT);
-    err = lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+    err = lfs_file_write(&lfs, &INIT, sq, sizeof(sq));
     lfs_file_close(&lfs, &INIT);
     lfs_unmount(&lfs);
     return err;
 }
 
 
-int save_init()
+int save_init(sequencer* sq)
 {
     int err = lfs_mount(&lfs, &CFG);
     lfs_file_open (&lfs, &INIT, "PRESETS", LFS_O_RDWR | LFS_O_CREAT);
-    lfs_file_write(&lfs, &INIT, &esq, sizeof(esq));
+    lfs_file_write(&lfs, &INIT, sq, sizeof(sq));
     lfs_file_close(&lfs, &INIT);
     lfs_unmount(&lfs);
     return err;

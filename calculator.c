@@ -38,7 +38,7 @@ inline static void arm(uint32_t lag, absolute_time_t* t);
 inline static void send(uint8_t id, const uint8_t status);
 static CD74HC595 sr;
 static ssd1306_t oled;
-
+static sequencer esq;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
@@ -479,7 +479,21 @@ void core1_interrupt_handler()
                     break;
 
                 case BTNCT:
-                    hold[BTNCT] = true;
+                    if(!hold[BTNCT])
+                    {
+                        switch (esq.state)
+                        {
+                        case PLAY:
+                            esq.state = PAUSE;
+                            break;
+                        case PAUSE: 
+                            esq.state = PLAY;
+                            break;
+                        default:
+                            break;
+                        }
+                        hold[BTNCT] = true;
+                    }
                     last = BTNCT;
                     break;
 
@@ -702,8 +716,9 @@ int main()
     uint32_t rv[_tracks]; // Revolution counters
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
-    RUN:
+    
     arm(100, tts);
+    RUN:
     while (esq.state == PLAY) 
 	{
         tud_task();
@@ -767,6 +782,7 @@ int main()
                 }
             }
         }
+        multicore_fifo_push_blocking(0);
         if(esq.state == PLAY) goto RUN;
     }
     while(esq.state == STOP) 
@@ -794,14 +810,17 @@ inline static void send(uint8_t id, const uint8_t status) // Send MIDI message /
     switch (status)
     {
     case 0x80:
-        _send_note_off(&esq.o[id]);
+        
         uint8_t off[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, 0 };
+        _send_note(off);
         tud_midi_stream_write(cable_num, off, 3);
         break;
     case 0x90:
-        _send_note_on(&esq.o[id]);
-        uint8_t mm[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity };
-        tud_midi_stream_write(cable_num, mm, 3);
+        int_fast16_t vd = 0;
+        if(esq.o[id].drift[0]) vd = rand_in_range(-esq.o[id].drift[0], esq.o[id].drift[0]);
+        uint8_t on[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity + vd };
+        _send_note(on);
+        tud_midi_stream_write(cable_num, on, 3);
         break;
     default:
         break;

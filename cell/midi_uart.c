@@ -1,23 +1,10 @@
 #include "midi_uart.h"
 
-void _send_note_on(track_t* o)
-{
-    uart_putc_raw(UART_ID, 0x90 | o->channel);
-    uart_putc_raw(UART_ID, o->data[o->current].chroma);
-    uart_putc_raw(UART_ID, o->data[o->current].velocity);
-}
 
 
-void _send_note_off(track_t* o)
+void _send_note(uint8_t* data)
 {
-    uart_putc_raw(UART_ID, 0x80 | o->channel);
-    uart_putc_raw(UART_ID, o->data[o->current].chroma);
-    uart_putc_raw(UART_ID, o->data[o->current].velocity);
-}
-
-void _send_note(uint32_t data)
-{
-    uart_putc_raw(UART_ID, ((data>>16)&0xFF));
-    uart_putc_raw(UART_ID, ((data>> 8)&0xFF));
-    uart_putc_raw(UART_ID, ((data    )&0xFF));
+    uart_putc_raw(UART_ID, data[0]);
+    uart_putc_raw(UART_ID, data[1]);
+    uart_putc_raw(UART_ID, data[2]);
 }

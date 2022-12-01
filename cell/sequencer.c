@@ -150,8 +150,8 @@ void sequencer_init(sequencer* o, uint16_t bpm)
 
 void sequencer_rand(sequencer* o, uint8_t track)
 {
-    uint16_t beat = rand_in_range(1, 0xFFFF);
-    insert_bits(&o->o[track], beat);
+    // uint16_t beat = rand_in_range(1, 0xFFFF);
+    // insert_bits(&o->o[track], beat);
     o->o[track].scale.data = rand_in_range(1, 0xFFF);
     o->o[track].scale.root = rand_in_range(0,    11);
     set_scale(&o->o[track].scale);

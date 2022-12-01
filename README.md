@@ -8,8 +8,8 @@
 - Scale/Root auto align
 - Tap tempo
 - Sync/freerun for each track
-- Adjustable drift // TODO
-- MIDI in FX mode //TODO
+- Adjustable velocity & timing drift
+- MIDI in FX mode   // TODO
 - external bpm sync // TODO
 
 <a href="./hardware/front.png"><img width=300 src="./hardware/front.png"/></a>
