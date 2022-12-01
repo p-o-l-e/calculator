@@ -1,6 +1,6 @@
 #include "midi_uart.h"
 
-void _send_note_on(track* o)
+void _send_note_on(track_t* o)
 {
     uart_putc_raw(UART_ID, 0x90 | o->channel);
     uart_putc_raw(UART_ID, o->data[o->current].chroma);
@@ -8,7 +8,7 @@ void _send_note_on(track* o)
 }
 
 
-void _send_note_off(track* o)
+void _send_note_off(track_t* o)
 {
     uart_putc_raw(UART_ID, 0x80 | o->channel);
     uart_putc_raw(UART_ID, o->data[o->current].chroma);

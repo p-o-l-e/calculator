@@ -28,35 +28,42 @@
 #include "suspend.h"
 #include "io.h"
 
-bool refresh_display = false;
-bool repaint_display = true;
-int8_t selected_track = 0; // Displayed track
-int8_t page = 0; // Current page
-uint16_t cable_num = 0;
+#define cable_num 0
 
-bool hold[16];
-bool hold_matrix[16];
 
-volatile absolute_time_t tts[_tracks]; // Trigger ON 
-volatile absolute_time_t gts[_tracks]; // Gate OFF
-volatile bool gate[_tracks]; // OFF is pending
 
-void swith_led();
-void scale_led();
-void arm(uint32_t lag);
-void send(uint8_t id, uint8_t status);
+inline static void swith_led(const int_fast8_t* track);
+inline static void scale_led(const int_fast8_t* track);
+inline static void arm(uint32_t lag, absolute_time_t* t);
+inline static void send(uint8_t id, const uint8_t status);
+static CD74HC595 sr;
+static ssd1306_t oled;
 
-int32_t prior = 0;
-float cap = 0.0f;
-bool tap_armed = false;
-uint_fast8_t last;
-uint32_t tap;
-int line = 0;
-char* lsel[] = {" ", "\x91"};
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
 {
+    quadrature_decoder ncoder;
+    int32_t ncoder_index;
+    ncoder_index = quad_encoder_init(&ncoder);
+    
+
+
+    bool hold[16];
+    bool hold_matrix[16];
+    bool refresh_display = false;
+    bool repaint_display = true;
+    bool tap_armed = false;
+    uint_fast32_t tap;
+    int_fast32_t prior = 0;
+    uint_fast8_t last;
+    uint_fast8_t _4067_iterator = 4;
+    int_fast8_t line = 0;
+    int_fast8_t selected_track = 0; // Displayed track
+    int_fast8_t page = 0; // Current page
+
+    float cap = 0.0f;
+    const char* lsel[] = {" ", "\x91"};
     while (multicore_fifo_rvalid())
     {
         uint16_t raw = multicore_fifo_pop_blocking();  
@@ -247,7 +254,7 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
                 sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].steps);
                 ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                char* mode[] = {"FWD", "BWD", "PNG", "RND"};
+                const char* mode[] = {"FWD", "BWD", "PNG", "RND"};
                 sprintf(str, "%s MODE    : %s",(line==2)?lsel[1]:lsel[0], mode[esq.o[selected_track].mode]);
                 ssd1306_print_string(&oled, 4, 20, str, 0, 0);
                 sprintf(str, "%s FREERUN : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected_track].freerun ? "ON" : "OFF");
@@ -281,7 +288,7 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 0, str, 0, 0);
                 for(int i = 0; i < 8; i++)
                 {
-                    switch (esq.ant[selected_track].rule[i])
+                    switch (esq.automata[selected_track].rule[i])
                     {
                         case 0: ssd1306_glyph(&oled, circle_u_8x8, 8, 8, 4 + 16*i, 20); break;
                         case 1: ssd1306_glyph(&oled, circle_r_8x8, 8, 8, 4 + 16*i, 20); break;
@@ -292,17 +299,17 @@ void core1_interrupt_handler()
                 }
                 for(int i = 0; i < 4; i++)
                 {
-                    if(((esq.ant[selected_track].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
+                    if(((esq.automata[selected_track].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
                     else ssd1306_print_string(&oled, 4 + 32*i, 30, "X", 0, 0);
-                    if(((esq.ant[selected_track].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
+                    if(((esq.automata[selected_track].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
                     else ssd1306_print_string(&oled, 20 + 32*i, 30, "X", 0, 0);
                 }
                 for(int i = 0; i < 8; i++)
                 {
-                    if(esq.ant[selected_track].step[i] > 0)
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.ant[selected_track].step[i], 0);
+                    if(esq.automata[selected_track].step[i] > 0)
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.automata[selected_track].step[i], 0);
                     else
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.ant[selected_track].step[i], 0);
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.automata[selected_track].step[i], 0);
                 }
                 sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
                 str[selected_track*2] = '\x9B';
@@ -396,10 +403,10 @@ void core1_interrupt_handler()
         }       
         if(hold[BTNUP])
         {
-            if(page == PAGE_NOTE) scale_led();
-            else swith_led();
+            if(page == PAGE_NOTE) scale_led(&selected_track);
+            else swith_led(&selected_track);
         }
-        else swith_led();
+        else swith_led(&selected_track);
 
         if(_4067_get())
         {
@@ -429,7 +436,7 @@ void core1_interrupt_handler()
                             repaint_display = true;
                         }
                         if(hold[ALTGR])
-                        if(page == PAGE_AUTO) { automata_rand(&esq.ant[selected_track]); repaint_display = true; }
+                        if(page == PAGE_AUTO) { automata_rand(&esq.automata[selected_track]); repaint_display = true; }
                         hold[SHIFT] = true;
                     }
                     last = SHIFT;
@@ -684,19 +691,19 @@ int main()
     // 4067 Init //////////////////////////////////////////////////////////////
     _4067_init();
     keypad_init();
-    ncoder_index = quad_encoder_init();
     ///////////////////////////////////////////////////////////////////////////
     // Sequencer Init /////////////////////////////////////////////////////////
+    absolute_time_t tts[_tracks]; // Trigger ON 
+    absolute_time_t gts[_tracks]; // Gate OFF
+    bool gate[_tracks]; // OFF is pending
     srand(time_us_32());
     sequencer_init(&esq, 120);
     for(int i = 0; i < _tracks; i++) sequencer_rand(&esq, i);
-    repaint_display = true;
-    page = 0;
     uint32_t rv[_tracks]; // Revolution counters
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
     RUN:
-    arm(100);
+    arm(100, tts);
     while (esq.state == PLAY) 
 	{
         tud_task();
@@ -738,9 +745,9 @@ int main()
             {
                 if(rv[i] != esq.o[i].revolutions)
                 {
-                    for(int j = 0; j < 16; j++) esq.ant[i].field[j] = esq.o[i].trigger[j];
-                    automata_evolve(&esq.ant[i]);
-                    for(int j = 0; j < 16; j++) esq.o[i].trigger[j] = esq.ant[i].field[j];
+                    for(int j = 0; j < 16; j++) esq.automata[i].field[j] = esq.o[i].trigger[j];
+                    automata_evolve(&esq.automata[i]);
+                    for(int j = 0; j < 16; j++) esq.o[i].trigger[j] = esq.automata[i].field[j];
                     rv[i] = esq.o[i].revolutions;
                 }
             }
@@ -782,7 +789,7 @@ int main()
 }
 
 
-void send(uint8_t id, uint8_t status) // Send MIDI message /////////////////////
+inline static void send(uint8_t id, const uint8_t status) // Send MIDI message /////////////////////
 {
     switch (status)
     {
@@ -799,18 +806,18 @@ void send(uint8_t id, uint8_t status) // Send MIDI message /////////////////////
     default:
         break;
     }
-    if(page == PAGE_LOG_)
-    {
-        char str[16];
-        if(status == 0x80)
-        sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-        if(status == 0x90)
-        sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-        ssd1306_log(&oled, str, 0, 0);
-    }
+    // if(page == PAGE_LOG_)
+    // {
+    //     char str[16];
+    //     if(status == 0x80)
+    //     sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+    //     if(status == 0x90)
+    //     sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
+    //     ssd1306_log(&oled, str, 0, 0);
+    // }
 }
 
-void arm(uint32_t lag) // Prepare to play routine ////////////
+inline static void arm(uint32_t lag, absolute_time_t* t) // Prepare to play routine ////////////
 {
     int8_t f = esq.o[0].data[esq.o[0].current].offset;
     for(int i = 1; i < _tracks; i++)
@@ -822,34 +829,34 @@ void arm(uint32_t lag) // Prepare to play routine ////////////
     }
     for(int i = 0; i < _tracks; i++)
     {
-        tts[i] = make_timeout_time_ms(esq.o[i].data[esq.o[i].current].offset - f + lag);
+        t[i] = make_timeout_time_ms(esq.o[i].data[esq.o[i].current].offset - f + lag);
     }
 }
 
-void swith_led()
+inline static void swith_led(const int_fast8_t* track)
 {
     static uint8_t led;
     _74HC595_set_all_low(&sr);
-    if(esq.o[selected_track].trigger[led]) pset(&sr, led&3, led>>2, 4);
+    if(esq.o[*track].trigger[led]) pset(&sr, led&3, led>>2, 4);
     led++;
     if(led > _steps) 
     {
         led = 0;
         _74HC595_set_all_low(&sr);
-        pset(&sr, esq.o[selected_track].current&3, esq.o[selected_track].current>>2, 2);
+        pset(&sr, esq.o[*track].current&3, esq.o[*track].current>>2, 2);
     }
 }
 
-void scale_led()
+inline static void scale_led(const int_fast8_t* track)
 {
     static uint8_t led;
     _74HC595_set_all_low(&sr);
-    if((esq.o[selected_track].scale.data&(0x800>>led))) pset(&sr, led&3, led>>2, 2);
+    if((esq.o[*track].scale.data&(0x800>>led))) pset(&sr, led&3, led>>2, 2);
     led++;
     if(led > 11) 
     {
         led = 0;
         _74HC595_set_all_low(&sr);
-        pset(&sr, esq.o[selected_track].scale.root &3, esq.o[selected_track].scale.root >>2, 4);
+        pset(&sr, esq.o[*track].scale.root &3, esq.o[*track].scale.root >>2, 4);
     }
 }

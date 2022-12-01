@@ -6,10 +6,10 @@
 
 typedef struct
 {
-    uint8_t  degree[12]; // Semitones above root
-    uint8_t  root;       // C == 0
-    uint16_t data;       // Bit representation
-    uint8_t  width;      // Number of degrees
+    uint_fast8_t  degree[12]; // Semitones above root
+    uint_fast8_t  root;       // C == 0
+    uint_fast16_t data;       // Bit representation
+    uint_fast8_t  width;      // Number of degrees
 
 } scale_t;
 

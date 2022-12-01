@@ -33,30 +33,27 @@
 #define VELOCITY 0
 #define OFFSET   1
 
-// Beat length (16 steps) = quarter = 60000ms/BPM
-// Step length = Beat/16 (1/64 note)
-
 typedef struct
 {
-    note     data[_steps];  // Note data
-    scale_t  scale;         // Note set
-    uint32_t revolutions;   // Beat counter
-    uint32_t beat;          // Beat length
-    uint32_t step;          // Step length
-    uint32_t atom;          // Minimal note length
-    uint16_t bpm;           // Beats per minute
-    uint_fast8_t channel;   // Track channel
-    int_fast8_t  steps;     // Steps count
-    int_fast8_t  mode;      // Loop mode
-    int_fast16_t current;   // Current step
-    int_fast16_t drift[4];
-    bool trigger[_steps];   // NoteON bits
-    bool regenerate[3];     // [0] Beat [1] Notes [3] Set scale
-    bool reset;             // Recount timestamp
+    note data[_steps];      // Note data
+    scale_t scale;          // Note set
+    uint_fast32_t revolutions;   // Beat counter
+    uint_fast32_t beat;          // Beat length
+    uint_fast32_t step;          // Step length
+    uint_fast32_t atom;          // Minimal note length
+    uint_fast16_t bpm;           // Beats per minute
+    int_fast16_t  current;   // Current step
+    int_fast16_t  drift[4];
+    uint_fast8_t  channel;   // Track channel
+    int_fast8_t   steps;     // Steps count
+    int_fast8_t   mode;      // Loop mode
+    bool trigger[_steps];    // NoteON bits
+    bool regenerate[3];      // [0] Beat [1] Notes [3] Set scale
+    bool reset;              // Recount timestamp
     bool freerun;
     bool on;
 
-} track;
+} track_t;
 
 #define PLAY  1
 #define PAUSE 2
@@ -64,36 +61,31 @@ typedef struct
 
 typedef struct 
 {
-    automata ant[_tracks];
-    track o[_tracks];
-    uint8_t state;
+    automata_t automata[_tracks];
+    track_t o[_tracks];
+    uint_fast8_t state;
     bool recount;
 
 } sequencer;
 
 ///////////////////////////////////////////////////////////////
 // Track routines /////////////////////////////////////////////
-
-void track_init     (track* o);
-void loop_forward   (track* o);
-void loop_backward  (track* o);
-void loop_pingpong  (track* o);
-void loop_random    (track* o);
-
-void insert_bits    (track* o, uint16_t bits);
-note get_note       (track* o);
-
-extern void (*loop_sequence[])(track*);
-
+void track_init     (track_t* o);
+void loop_forward   (track_t* o);
+void loop_backward  (track_t* o);
+void loop_pingpong  (track_t* o);
+void loop_random    (track_t* o);
+void insert_bits    (track_t* o, uint16_t bits);
+note get_note       (track_t* o);
+extern void (*loop_sequence[])(track_t*);
 
 ///////////////////////////////////////////////////////////////
 // Sequencer routines /////////////////////////////////////////
-void reset_timestamp(sequencer* o, uint8_t _track, uint16_t bpm);
-void sequencer_init(sequencer* o, uint16_t bpm);
-// void    sequencer_arm(sequencer* o);
-void sequencer_run(sequencer* o);
-void sequencer_stop(sequencer* o);
+void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm);
+void sequencer_init (sequencer* o, uint16_t bpm);
+void sequencer_run  (sequencer* o);
+void sequencer_stop (sequencer* o);
 void sequencer_pause(sequencer* o);
-void sequencer_rand(sequencer* o, uint8_t _track);
-void recount_all(sequencer* o, int track);
+void sequencer_rand (sequencer* o, uint8_t track);
+void recount_all    (sequencer* o, int track);
 uint32_t get_timeout(sequencer* o, uint8_t track); // Time to the next step - NULL if timeline is clear

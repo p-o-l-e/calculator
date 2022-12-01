@@ -12,14 +12,12 @@
 #define CLOCK_595   18
 #define DATA_595    19
 #define LATCH_595   16
-CD74HC595 sr;
 
 #define SDA_PIN     2
 #define SCL_PIN     3
 #define RESET_PIN  -1
 #define OLED_WIDTH  128
 #define OLED_HEIGHT 64
-ssd1306_t oled;
 
 #define PGLFT   4   // Page Left
 #define PGRGT   5   // Page Right
@@ -35,8 +33,7 @@ ssd1306_t oled;
 // Encoder //////////////////////////
 #define NCODER_A    9
 #define NCODER_B   10
-quadrature_decoder ncoder;
-int32_t ncoder_index;
+
 // Button matrix columns: GPIOs ////
 #define MCOL0   17
 #define MCOL1   20
@@ -48,8 +45,7 @@ int32_t ncoder_index;
 #define MROW2   2
 #define MROW3   3
 
-volatile uint8_t _4067_iterator = 4;
-const uint8_t _matrix[4] = { MCOL0, MCOL1, MCOL2, MCOL3};
+const uint_fast8_t _matrix[4] = { MCOL0, MCOL1, MCOL2, MCOL3};
 
 void keypad_init() 
 {
@@ -60,10 +56,10 @@ void keypad_init()
     }
 }
 
-uint8_t keypad_switch()
+uint_fast8_t keypad_switch()
 {
-    static uint8_t f;
-    static uint8_t column;
+    static uint_fast8_t f;
+    static uint_fast8_t column;
     if(f > 3) { f = 0; column++; }
     if(column > 3) column = 0;
     for(int i = 0; i < 4; i++)
@@ -75,14 +71,12 @@ uint8_t keypad_switch()
     return column;
 }
 
-int32_t quad_encoder_init()
+int32_t quad_encoder_init(quadrature_decoder *ncoder)
 {
     gpio_init(NCODER_A);
     gpio_init(NCODER_B);
-    // gpio_set_dir(NCODER_A, GPIO_IN);
-    // gpio_set_dir(NCODER_B, GPIO_IN);
     gpio_pull_down(NCODER_A);
     gpio_pull_down(NCODER_B);
-    quadrature_decoder_init(&ncoder, pio0);
-    return add_quadrature_decoder(&ncoder, NCODER_A);
+    quadrature_decoder_init(ncoder, pio0);
+    return add_quadrature_decoder(ncoder, NCODER_A);
 }

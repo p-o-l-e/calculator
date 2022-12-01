@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 #include "font.h"
@@ -91,7 +92,6 @@ static inline void ssd1306_send_command(ssd1306_t *ssd, uint8_t command)
 
 void ssd1306_send_command_list(ssd1306_t *ssd, const uint8_t *commands, size_t command_size);
 void ssd1306_send_data(ssd1306_t *ssd, const uint8_t *data, size_t data_size);
-
 void ssd1306_set_pixels(ssd1306_t *ssd);
 
 static inline void ssd1306_set_display_power(ssd1306_t *ssd, bool power) 
@@ -131,7 +131,6 @@ static inline void ssd1306_set_full_rotation(ssd1306_t *ssd, bool rotated)
     ssd1306_set_horizontal_flip(ssd, rotated);
 }
 
-
 static inline void ssd1306_buffer_set_pixels_direct(ssd1306_t *ssd, const uint8_t *pixels) 
 {
     memcpy(ssd->buffer, pixels, ssd->width * ssd->height / 8);
@@ -142,18 +141,13 @@ static inline void ssd1306_buffer_fill_pixels(ssd1306_t *ssd, ssd1306_color_t co
     memset(ssd->buffer, (color == WHITE) ? 0xff : 0x00, ssd->width * ssd->height / 8);
 }
 
-
-
-
 void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y);
-void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, uint8_t s, bool invert);
-void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, char* s, bool invert, bool vertical);
-void ssd1306_log(ssd1306_t* p, char* s, uint16_t ms, bool clr);
+void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, const uint8_t s, bool invert);
+void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, const char* s, bool invert, bool vertical);
+void ssd1306_log(ssd1306_t* p, const char* s, uint16_t ms, bool clr);
 void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical);
 void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical);
-void ssd1306_glyph(ssd1306_t* oled, bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
+void ssd1306_glyph(ssd1306_t* oled, const bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
 void ssd1306_progress_cv_bar(ssd1306_t* oled, int8_t value, uint8_t x, uint8_t y, uint8_t max, uint8_t length, uint8_t width);
-
-
 
 #endif

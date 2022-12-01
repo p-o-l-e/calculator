@@ -4,7 +4,7 @@
 void set_scale(scale_t* scale)
 {
     scale->data  |= (1<<(11 - scale->root));
-    uint8_t s = 0;
+    uint_fast8_t s = 0;
     for(int i = scale->root; i < 12 + scale->root; i++)
     {
         if(scale->data & (0x800 >> (i % 12)))

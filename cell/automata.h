@@ -9,28 +9,17 @@
 
 typedef struct
 {
-    int current;
     bool field[ROWS * COLS];
-    int8_t rule[16];
-    int8_t step[8];
-    int pos[2];
-    int iterations;
+    int_fast8_t current;
+    int_fast8_t rule[16];
+    int_fast8_t step[8];
+    int_fast8_t pos[2];
+    int_fast8_t iterations;
 
-} automata;
+} automata_t;
 
 
-typedef struct
-{
-	uint64_t field[ROWS][COLS];
-	uint64_t rule;
-    int64_t  nbrs;
-
-} element;
-
-void element_init(element* o);
-void evolve(element* o);
-
-void automata_evolve(automata* o);
-void automata_clr(automata* o);
-void automata_init(automata* o);
-void automata_rand(automata* o);
+void automata_evolve(automata_t* o);
+void automata_clr(automata_t* o);
+void automata_init(automata_t* o);
+void automata_rand(automata_t* o);
