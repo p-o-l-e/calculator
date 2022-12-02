@@ -27,29 +27,29 @@
 #include "midi.h"
 #include "automata.h"
 
-#define TRACKS  4  // Number of tracks
-#define STEPS   16 // Maximum number of steps
+#define TRACKS  4       // Number of tracks
+#define STEPS   16      // Maximum number of steps
 
 
 typedef struct
 {
-    note data[STEPS];      // Note data
-    scale_t scale;          // Note set
-    int revolutions;   // Beat counter
-    int beat;          // Beat length
-    int step;          // Step length
-    int atom;          // Minimal note length
-    int bpm;           // Beats per minute
-    int current;   // Current step
-    int drift[4];
-    int channel;   // Track channel
-    int steps;     // Steps count
-    int mode;      // Loop mode
-    bool trigger[STEPS];    // NoteON bits
-    bool regenerate[3];      // [0] Beat [1] Notes [3] Set scale
-    bool reset;              // Recount timestamp
-    bool freerun;
-    bool on;
+    note data[STEPS];   // Note data
+    scale_t scale;      // Note set
+    int revolutions;    // Beat counter
+    int beat;           // Beat length
+    int step;           // Step length
+    int atom;           // Minimal note length
+    int bpm;            // Beats per minute
+    int current;        // Current step
+    int drift[4];       // Drift amount of: [0] Velocity [1] Offset
+    int channel;        // Track channel
+    int steps;          // Steps count
+    int mode;           // Loop mode
+    bool trigger[STEPS];// NoteON bits
+    bool regenerate[3]; // [0] Beat [1] Notes [3] Set scale
+    bool reset;         // Recount timestamp
+    bool freerun;       // Sync
+    bool on;            // On-Off switch
 
 } track_t;
 

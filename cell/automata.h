@@ -11,8 +11,7 @@ typedef struct
 {
     bool field[ROWS * COLS];
     int current;
-    int rule[16];
-    int step[8];
+    int rule[20];
     int pos[2];
     int iterations;
 

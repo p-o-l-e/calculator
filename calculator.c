@@ -263,7 +263,6 @@ void core1_interrupt_handler()
             
             case PAGE_DRTN:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-
                 ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
                 for(int i = 0; i < 16; ++i)
                 {
@@ -300,10 +299,10 @@ void core1_interrupt_handler()
                 }
                 for(int i = 0; i < 8; ++i)
                 {
-                    if(esq.automata[selected].step[i] > 0)
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].step[i], 0);
+                    if(esq.automata[selected].rule[12 + i] > 0)
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
                     else
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].step[i], 0);
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
                 }
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
                 str[selected*2] = '\x82';
@@ -315,7 +314,6 @@ void core1_interrupt_handler()
 
             case PAGE_VELO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-
                 ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
                 for(int i = 0; i < 16; ++i)
                 {
@@ -363,10 +361,8 @@ void core1_interrupt_handler()
             case PAGE_NOTE:
                 char s[1];
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-
                 ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
                 ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
-
                 for(int i = 0; i < 12; ++i)
                 {
                     if(esq.o[selected].scale.data & (0x800 >> i))
@@ -725,15 +721,16 @@ int main()
 
     sequencer_init(&esq, 120);
     for(int i = 0; i < TRACKS; ++i) sequencer_rand(&esq, i);
-    multicore_fifo_push_blocking(0);
+    arm(100, tts);
+
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
-    ARM:
-    if(esq.state == PLAY) arm(100, tts);
-    RUN:
-    while (esq.state == PLAY) 
+    while (true) 
 	{
         tud_task();
+        switch(esq.state)
+        {
+        case PLAY:
         for(int i = 0; i < TRACKS; ++i)
         {
             if(esq.o[i].data[esq.o[i].current].recount) 
@@ -779,45 +776,42 @@ int main()
                     rv[i] = esq.o[i].revolutions;
                 }
             }
-        }
-        multicore_fifo_push_blocking(0);
-    }
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Paused ////////////////////////////////////////////////////////////////////////////
-    while(esq.state == PAUSE) 
-	{
-        for(int i = 0; i < TRACKS; ++i)
-        {
-            if(time_reached(gts[i]))
+            break;
+
+        case PAUSE:
+            for(int i = 0; i < TRACKS; ++i)
             {
-                if(gate[i])
+                if(time_reached(gts[i]))
                 {
-                    send(i, 0x80);
-                    gate[i] = false;
+                    if(gate[i])
+                    {
+                        send(i, 0x80);
+                        gate[i] = false;
+                    }
                 }
             }
-        }
-        multicore_fifo_push_blocking(0);
-        if(esq.state == PLAY) goto RUN;
-    }
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Stopped ///////////////////////////////////////////////////////////////////////////
-    while(esq.state == STOP) 
-	{
-        for(int i = 0; i < TRACKS; ++i)
-        {
-            if(time_reached(gts[i]))
+            break;
+
+        case STOP:
+            for(int i = 0; i < TRACKS; ++i)
             {
-                if(gate[i])
+                if(time_reached(gts[i]))
                 {
-                    send(i, 0x80);
-                    gate[i] = false;
+                    if(gate[i])
+                    {
+                        send(i, 0x80);
+                        gate[i] = false;
+                    }
                 }
+                esq.o[i].current = 0;
             }
-            esq.o[i].current = 0;
+            break;
+
+        default:
+            break;
+        }
         }
         multicore_fifo_push_blocking(0);
-        if(esq.state == PLAY) goto ARM;
     }
     return 0;
 }

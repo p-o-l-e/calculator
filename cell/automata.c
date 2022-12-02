@@ -12,19 +12,19 @@ void automata_evolve(automata_t* o)
         switch (o->current)
         {
             case 0b00:
-                o->pos[((o->rule[8]>>1)&0b1)]+=o->step[0]; 
+                o->pos[((o->rule[8]>>1)&0b1)]+=o->rule[12]; 
                 o->current = o->rule[0]; 
                 break;
             case 0b01:
-                o->pos[((o->rule[8])&0b1)]+=o->step[1]; 
+                o->pos[((o->rule[8])&0b1)]+=o->rule[13]; 
                 o->current = o->rule[1]; 
                 break;
             case 0b10:
-                o->pos[((o->rule[9]>>1)&0b1)]+=o->step[2]; 
+                o->pos[((o->rule[9]>>1)&0b1)]+=o->rule[14]; 
                 o->current = o->rule[2]; 
                 break;
             case 0b11:
-                o->pos[(o->rule[9]&0b1)]+=o->step[3];
+                o->pos[(o->rule[9]&0b1)]+=o->rule[15];
                 o->current = o->rule[3]; 
                 break;
             default:
@@ -37,19 +37,19 @@ void automata_evolve(automata_t* o)
         switch(o->current)
         {
             case 0b00:
-                o->pos[((o->rule[10]>>1)&0b1)]+=o->step[4];
+                o->pos[((o->rule[10]>>1)&0b1)]+=o->rule[16];
                 o->current = o->rule[4]; 
                 break;
             case 0b01:
-                o->pos[((o->rule[10])&0b1)]+=o->step[5];
+                o->pos[((o->rule[10])&0b1)]+=o->rule[17];
                 o->current = o->rule[5]; 
                 break;
             case 0b10:
-                o->pos[((o->rule[11]>>1)&0b1)]+=o->step[6];
+                o->pos[((o->rule[11]>>1)&0b1)]+=o->rule[18];
                 o->current = o->rule[6]; 
                 break;
             case 0b11:
-                o->pos[((o->rule[11])&0b1)]+=o->step[7];
+                o->pos[((o->rule[11])&0b1)]+=o->rule[19];
                 o->current = o->rule[7]; 
                 break;
             default:
@@ -71,15 +71,6 @@ void automata_clr(automata_t* o)
 
 void automata_init(automata_t* o)
 {
-    o->step[ 0] =  1;
-    o->step[ 1] =  1;
-    o->step[ 2] = -1;
-    o->step[ 3] = -1;
-    o->step[ 4] = -1;
-    o->step[ 5] = -1;
-    o->step[ 6] =  1;
-    o->step[ 7] =  1;
-
     o->rule[ 0] = 0b01;
     o->rule[ 1] = 0b10;
     o->rule[ 2] = 0b11;
@@ -94,6 +85,15 @@ void automata_init(automata_t* o)
     o->rule[ 9] = 0b01;
     o->rule[10] = 0b01; 
     o->rule[11] = 0b01;
+
+    o->rule[12] =  1;
+    o->rule[13] =  1;
+    o->rule[14] = -1;
+    o->rule[15] = -1;
+    o->rule[16] = -1;
+    o->rule[17] = -1;
+    o->rule[18] =  1;
+    o->rule[19] =  1;
     
     o->iterations = 1;
     automata_clr(o);
@@ -105,5 +105,5 @@ void automata_rand(automata_t* o)
     o->pos[1]   = rand_in_range(0, ROWS-1);
     o->current  = rand_in_range(0, 0b11);
     for(int i = 0; i < 12; ++i) o->rule[i] = rand_in_range( 0, 3);
-    for(int i = 0; i <  8; ++i) o->step[i] = rand_in_range(-3, 3);
+    for(int i = 0; i <  8; ++i) o->rule[12 + i] = rand_in_range(-3, 3);
 }
