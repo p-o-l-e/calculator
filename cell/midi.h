@@ -50,22 +50,15 @@ typedef enum
 
 } UMPstatus;
 
-typedef struct
-{
-    uint8_t status;      // MIDI Message
-    uint8_t msb     : 7; // MSB
-    uint8_t lsb     : 7; // LSB
-
-} mmsg;
 
 typedef struct
 {
-    int_fast16_t chroma;     // MIDI Note number
-    int_fast16_t degree;     // Scale degree 0 - 11
-    int_fast16_t octave;     // Octave 1 == Sub Contra
-    int_fast16_t value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
-    int_fast16_t velocity;   // MIDI Velocity 0-127
-    int_fast16_t offset;     // Time offset in ms
-    bool recount;       // Set chroma flag
+    int  chroma;     // MIDI Note number
+    int  degree;     // Scale degree 0 - 11
+    int  octave;     // Octave 1 == Sub Contra
+    int  value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
+    int  velocity;   // MIDI Velocity 0-127
+    int  offset;     // Time offset in ms
+    bool recount;    // Set chroma flag
 
 } note;

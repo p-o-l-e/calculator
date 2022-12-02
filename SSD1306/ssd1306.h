@@ -141,7 +141,12 @@ static inline void ssd1306_buffer_fill_pixels(ssd1306_t *ssd, ssd1306_color_t co
     memset(ssd->buffer, (color == WHITE) ? 0xff : 0x00, ssd->width * ssd->height / 8);
 }
 
-void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y);
+static inline void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y)
+{
+    if(x>=p->width || y>=p->height) return;
+    p->buffer[x + p->width * (y >> 3)] |= 0x1 << (y & 0x07);
+}
+
 void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, const uint8_t s, bool invert);
 void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, const char* s, bool invert, bool vertical);
 void ssd1306_log(ssd1306_t* p, const char* s, uint16_t ms, bool clr);

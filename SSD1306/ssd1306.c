@@ -69,18 +69,13 @@ void ssd1306_send_data(ssd1306_t *ssd, const uint8_t *data, size_t data_size)
 }
 
 
-void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y) 
-{
-    if(x>=p->width || y>=p->height) return;
-    p->buffer[x + p->width * (y >> 3)] |= 0x1 << (y & 0x07); // y>>3==y/8 && y&0x7==y%8
-}
 
 void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, const uint8_t s, bool invert)
 {
-    for(int i = 0; i < 8; i++) // X
+    for(int i = 0; i < 8; ++i) // X
     {
         uint8_t l = gtFont[(s-32)*8 + i];
-        for(int j = 0; j < 8; j++) // Y
+        for(int j = 0; j < 8; ++j) // Y
         {
             if((l&0b1)!=invert) ssd1306_pset(p, x + i, y + j);
             l>>=1;
@@ -90,16 +85,16 @@ void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, const uint8_t s, boo
 
 void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, const char* s, bool invert, bool vertical)
 {
-    if(vertical) for(int i = 0; i < strlen(s); i++) ssd1306_print_char(p, x , y + 8*i, s[i], invert);
-    else for(int i = 0; i < strlen(s); i++) ssd1306_print_char(p, x + 8*i, y, s[i], invert);
+    if(vertical) for(int i = 0; i < strlen(s); ++i) ssd1306_print_char(p, x , y + 8*i, s[i], invert);
+    else for(int i = 0; i < strlen(s); ++i) ssd1306_print_char(p, x + 8*i, y, s[i], invert);
 }
 
 void ssd1306_log(ssd1306_t* p, const char* s, uint16_t ms, bool clr)
 {
     static char _log_[8][16];
-    if(clr) for(int i = 0; i < 8; i++) strcpy(_log_[i], "               ");
+    if(clr) for(int i = 0; i < 8; ++i) strcpy(_log_[i], "               ");
     ssd1306_buffer_fill_pixels(p, BLACK);
-    for(int i = 0; i < 7; i++)    
+    for(int i = 0; i < 7; ++i)    
     {
         strcpy(_log_[i], _log_[i+1]);
         ssd1306_print_string(p, 0, i*8, _log_[i], 0, 0);
@@ -113,7 +108,7 @@ void ssd1306_log(ssd1306_t* p, const char* s, uint16_t ms, bool clr)
 
 void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical)
 {
-    if(vertical) for(int i = y; i < length + y; i++) ssd1306_pset(oled, x, i);
+    if(vertical) for(int i = y; i < length + y; ++i) ssd1306_pset(oled, x, i);
     else for(int i = x; i < length + x; i++) ssd1306_pset(oled, i, y);
 }
 
@@ -135,7 +130,7 @@ void ssd1306_progress_cv_bar(ssd1306_t* oled, int8_t value, uint8_t x, uint8_t y
 
 void ssd1306_glyph(ssd1306_t* oled, const bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y)
 {
-    for(int i = 0; i < h; i++)
-        for(int j = 0; j < w; j++)
+    for(int i = 0; i < h; ++i)
+        for(int j = 0; j < w; ++j)
             if(data[j + w * i]) ssd1306_pset(oled, x + j, y + i);
 }

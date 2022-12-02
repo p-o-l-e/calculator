@@ -53,23 +53,20 @@ target_link_libraries(calculator PRIVATE
 target_compile_definitions(calculator PRIVATE
 
     PICO_NO_FPGA_CHECK=1
-
+	PICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1
 )
 
 set(PICO_DEFAULT_FLOAT_IMPL pico_float_pico)
 
 target_compile_options(calculator PRIVATE
 
-    -O3
+    -Ofast
 	-march=armv6-m
 	-mcpu=cortex-m0plus
 	-mtune=cortex-m0plus
 	-mfloat-abi=softfp
-
 )
 
-
-
+pico_set_double_implementation(calculator none)
 pico_set_binary_type(calculator copy_to_ram)
-
 pico_add_extra_outputs(calculator)

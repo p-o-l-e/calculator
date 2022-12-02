@@ -1,5 +1,4 @@
 #pragma once
-#include "midi.h"
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "sequencer.h"

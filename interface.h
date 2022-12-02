@@ -14,11 +14,11 @@
 #define PAGE_AUTO 5
 #define PAGE_DRFT 6
 #define PAGE_LOG_ 7
+
+#define PAGE_SAVE 8
 #define PAGE_NCDR 12
 
 #define PAGES     7
-
-
 
 static lfs_t      lfs;
 static lfs_file_t INIT;

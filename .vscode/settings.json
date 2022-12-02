@@ -39,6 +39,7 @@
         "quadrature_decoder.h": "c",
         "quadrature_decoder.pio.h": "c",
         "fio.h": "c",
-        "ratio": "c"
+        "ratio": "c",
+        "midi.h": "c"
     }
 }

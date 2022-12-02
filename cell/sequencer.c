@@ -27,14 +27,17 @@ void track_init(track_t* o)
 {
     o->current  = 0;
     o->mode     = 0;
-    o->steps    = _steps;
+    o->steps    = STEPS;
     o->revolutions = 0;
     o->freerun  = false;
+    o->regenerate[0] = 0;
+    o->regenerate[1] = 0;
+    o->regenerate[2] = 0;
     o->drift[0] = 0;
     o->drift[1] = 0;
     o->drift[2] = 0;
     o->drift[3] = 0;
-    for(int i = 0; i < _steps; i++)
+    for(int i = 0; i < STEPS; ++i)
     {
         o->data[i].degree   = 0;
         o->data[i].octave   = 3;
@@ -47,21 +50,21 @@ void track_init(track_t* o)
 
 void loop_forward(track_t* o)
 {
-    o->current++;
+    ++o->current;
     if(o->current >= o->steps) 
     {
         o->current = 0;
-        o->revolutions++;
+        ++o->revolutions;
     }
 }
 
 void loop_backward(track_t* o)
 {
-    o->current--;
+    --o->current;
     if(o->current < 0)
     {
         o->current = o->steps - 1;
-        o->revolutions++;
+        ++o->revolutions;
     }
 }
 
@@ -70,35 +73,35 @@ void loop_pingpong(track_t* o)
     static bool f;
     if(f)
     {
-        o->current++;
+        ++o->current;
         if(o->current >= o->steps) 
         {
             o->current = o->steps - 2;
             f = false;
-            o->revolutions++;
+            ++o->revolutions;
         }
     }
     else
     {
-        o->current--;
+        --o->current;
         if(o->current < 0) 
         {
             f = true;
             o->current = 1;
-            o->revolutions++;
+            ++o->revolutions;
         }
     }
 }
 
 void loop_random(track_t* o)
 {
-    static uint8_t r;
+    static int r;
     o->current  = rand_in_range(0, o->steps - 1);
-    r++;
+    ++r;
     if(r>o->steps)
     {
         r = 0;
-        o->revolutions++;
+        ++o->revolutions;
     }
 }
 
@@ -110,7 +113,7 @@ note get_note(track_t* o)
 void insert_bits(track_t* o, uint16_t bits)
 {
     uint16_t s = bits;
-    for(int i = _steps - 1; i >= 0; i--) 
+    for(int i = STEPS - 1; i >= 0; --i) 
     {
         o->trigger[i] = s & 1;
         s >>= 1;
@@ -125,7 +128,7 @@ void (*loop_sequence[])(track_t*) =
     loop_random
 };
 
-void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
+void reset_timestamp(sequencer* o, int track, int bpm)
 {
     o->o[track].bpm = bpm;
     if(bpm > 800) bpm = 800;
@@ -136,10 +139,10 @@ void reset_timestamp(sequencer* o, uint8_t track, uint16_t bpm)
     if(o->o[track].atom == 0) o->o[track].atom = 1;
 }
 
-void sequencer_init(sequencer* o, uint16_t bpm)
+void sequencer_init(sequencer* o, int bpm)
 {
-    o->state = PLAY;
-    for(int i = 0; i < _tracks; i++)
+    o->state = STOP;
+    for(int i = 0; i < TRACKS; ++i)
     {
         track_init(&o->o[i]);
         o->o[i].channel = i;
@@ -148,14 +151,14 @@ void sequencer_init(sequencer* o, uint16_t bpm)
     }
 }
 
-void sequencer_rand(sequencer* o, uint8_t track)
+void sequencer_rand(sequencer* o, int track)
 {
     // uint16_t beat = rand_in_range(1, 0xFFFF);
     // insert_bits(&o->o[track], beat);
     o->o[track].scale.data = rand_in_range(1, 0xFFF);
     o->o[track].scale.root = rand_in_range(0,    11);
     set_scale(&o->o[track].scale);
-    for(int i = 0; i < _steps; i++)
+    for(int i = 0; i < STEPS; ++i)
     {
         o->o[track].data[i].value    = rand_in_range(1,  32);
         o->o[track].data[i].offset   = 0;//rand_in_range(-0x7F,  0x7F);
@@ -168,7 +171,7 @@ void sequencer_rand(sequencer* o, uint8_t track)
 
 void recount_all(sequencer* o, int track)
 {
-    for(int i = 0; i < _steps; i++)
+    for(int i = 0; i < STEPS; ++i)
     {
         note_from_degree(&o->o[track].scale, &o->o[track].data[i] );
     }

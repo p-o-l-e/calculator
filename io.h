@@ -18,34 +18,34 @@
 #define RESET_PIN  -1
 #define OLED_WIDTH  128
 #define OLED_HEIGHT 64
+////////////////////////////////////////
+#define PGLFT       4   // Page Left
+#define PGRGT       5   // Page Right
+#define ALTGR       6   // Upper alt
+#define ENCDR       7   // Encoder button
+#define BTNUP       8
+#define BTNCT       9
+#define BTNDW       10
+#define SHIFT       11
 
-#define PGLFT   4   // Page Left
-#define PGRGT   5   // Page Right
-#define ALTGR   6   // Upper alt
-#define ENCDR   7   // Encoder button
-#define BTNUP   8
-#define BTNCT   9
-#define BTNDW   10
-#define SHIFT   11
-
-
-#define N4067   12  // 4067 Inputs
-// Encoder //////////////////////////
+#define N4067       12  // 4067 Inputs
+// Encoder ////////////////////////////
 #define NCODER_A    9
-#define NCODER_B   10
+#define NCODER_B    10
+// Button matrix columns: GPIOs ///////
+#define MCOL0       17
+#define MCOL1       20
+#define MCOL2       21
+#define MCOL3       22
+// Button matrix rows: 4067 ///////////
+#define MROW0       0
+#define MROW1       1
+#define MROW2       2
+#define MROW3       3
 
-// Button matrix columns: GPIOs ////
-#define MCOL0   17
-#define MCOL1   20
-#define MCOL2   21
-#define MCOL3   22
-// Button matrix rows: 4067 ////////
-#define MROW0   0
-#define MROW1   1
-#define MROW2   2
-#define MROW3   3
+#define cable_num   0
 
-const uint_fast8_t _matrix[4] = { MCOL0, MCOL1, MCOL2, MCOL3};
+static const int _matrix[4] = { MCOL0, MCOL1, MCOL2, MCOL3 };
 
 void keypad_init() 
 {
@@ -56,10 +56,10 @@ void keypad_init()
     }
 }
 
-uint_fast8_t keypad_switch()
+int keypad_switch()
 {
-    static uint_fast8_t f;
-    static uint_fast8_t column;
+    static int f;
+    static int column;
     if(f > 3) { f = 0; column++; }
     if(column > 3) column = 0;
     for(int i = 0; i < 4; i++)

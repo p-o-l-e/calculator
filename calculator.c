@@ -28,13 +28,10 @@
 #include "suspend.h"
 #include "io.h"
 
-#define cable_num 0
 
-
-
-inline static void swith_led(const int_fast8_t* track);
-inline static void scale_led(const int_fast8_t* track);
-inline static void arm(uint32_t lag, absolute_time_t* t);
+inline static void swith_led(const int* track);
+inline static void scale_led(const int* track);
+inline static void arm(uint lag, absolute_time_t* t);
 inline static void send(uint8_t id, const uint8_t status);
 static CD74HC595 sr;
 static ssd1306_t oled;
@@ -44,40 +41,45 @@ static sequencer esq;
 void core1_interrupt_handler() 
 {
     quadrature_decoder ncoder;
-    int32_t ncoder_index;
+    int ncoder_index;
     ncoder_index = quad_encoder_init(&ncoder);
     
-
-
     bool hold[16];
     bool hold_matrix[16];
-    bool refresh_display = false;
-    bool repaint_display = true;
+    bool refresh = false;
+    bool repaint = true;
     bool tap_armed = false;
-    uint_fast32_t tap;
-    int_fast32_t prior = 0;
-    uint_fast8_t last;
-    uint_fast8_t _4067_iterator = 4;
-    int_fast8_t line = 0;
-    int_fast8_t selected_track = 0; // Displayed track
-    int_fast8_t page = 0; // Current page
+    bool save = true;
+    int tap = 0;
+    int prior = 0;    // Last encoder value
+    int last = 0;     // Last action
+    int sreg = 4;     // Shift Register iterator
+    int line = 0;     // Selected display line
+    int selected = 0; // Displayed track
+    int page = 0;     // Current page
 
-    float cap = 0.0f;
-    const char* lsel[] = {" ", "\x91"};
+    int cap = 0;
+    const char* lsel[] = {" ", "\x80"};
+    const char* mode[] = {"FWD", "BWD", "PNG", "RND"};
+    const int xs[12] = { 56, 60, 66, 70, 76, 86, 90, 96, 100, 106, 110, 116};
+    const int ys[12] = { 10,  0, 10,  0, 10, 10,  0, 10,   0,  10,   0,  10};
+    const char* chromatic[]    = {" C","#C"," D","#D"," E"," F","#F"," G","#G"," A","#A"," B"};
+    const char* chromatic_lr[] = {"C ","C#","D ","D#","E ","F ","F#","G ","G#","A ","A#","B "};
+
+
     while (multicore_fifo_rvalid())
     {
         uint16_t raw = multicore_fifo_pop_blocking();  
-        _4067_iterator++;
-        if(_4067_iterator >= N4067) _4067_iterator = 0;
-        _4067_switch(_4067_iterator, 0);
-        uint8_t ccol = keypad_switch();
+        if(++sreg >= N4067) sreg = 0;
+        _4067_switch(sreg, 0);
+        int ccol = keypad_switch();
         // ENCODER /////////////////////////////////////////////////////////////////////////////////////////
-        int32_t current = get_count(&ncoder, ncoder_index);
+        int current = get_count(&ncoder, ncoder_index);
         if(current!=prior)
         {
             int f = -1;
-            cap += ((float)(prior - current)*0.3f);
-            for(int i = 0; i < 16; i++)
+            cap += ((prior - current)*300);
+            for(int i = 0; i < 16; ++i)
             {
                 if(hold_matrix[i])
                 {
@@ -90,53 +92,51 @@ void core1_interrupt_handler()
                 switch (page)
                 {
                     case PAGE_DRTN: 
-                        if(hold[ENCDR]) esq.o[selected_track].data[f].value += ((prior > current) ? -3 : 3);
-                        else esq.o[selected_track].data[f].value += ((prior > current) ? -1 : 1);
-                        if(esq.o[selected_track].data[f].value > 0xFF) esq.o[selected_track].data[f].value = 0xFF;
-                        else if(esq.o[selected_track].data[f].value < 1) esq.o[selected_track].data[f].value = 1;
+                        if(hold[ENCDR]) esq.o[selected].data[f].value += ((prior > current) ? -3 : 3);
+                        else esq.o[selected].data[f].value += ((prior > current) ? -1 : 1);
+                        if(esq.o[selected].data[f].value > 0xFF) esq.o[selected].data[f].value = 0xFF;
+                        else if(esq.o[selected].data[f].value < 1) esq.o[selected].data[f].value = 1;
                         break;
 
                     case PAGE_VELO: 
-                        if(hold[ENCDR]) esq.o[selected_track].data[f].velocity  += ((prior > current) ? -3 : 3);
-                        else esq.o[selected_track].data[f].velocity  += ((prior > current) ? -1 : 1);
-                        if(esq.o[selected_track].data[f].velocity > 0x7F) esq.o[selected_track].data[f].velocity = 0x7F;
-                        else if(esq.o[selected_track].data[f].velocity < 1) esq.o[selected_track].data[f].velocity = 1;
+                        if(hold[ENCDR]) esq.o[selected].data[f].velocity  += ((prior > current) ? -3 : 3);
+                        else esq.o[selected].data[f].velocity  += ((prior > current) ? -1 : 1);
+                        if(esq.o[selected].data[f].velocity > 0x7F) esq.o[selected].data[f].velocity = 0x7F;
+                        else if(esq.o[selected].data[f].velocity < 1) esq.o[selected].data[f].velocity = 1;
                         break;
 
                     case PAGE_FFST: 
-                        if(hold[ENCDR]) esq.o[selected_track].data[f].offset  += ((prior > current) ? -3 : 3);
-                        else esq.o[selected_track].data[f].offset  += ((prior > current) ? -1 : 1);
-                        if(esq.o[selected_track].data[f].offset > 0x7F) esq.o[selected_track].data[f].offset = 0x7F;
-                        else if(esq.o[selected_track].data[f].offset < -0x7F) esq.o[selected_track].data[f].offset = -0x7F;
+                        if(hold[ENCDR]) esq.o[selected].data[f].offset  += ((prior > current) ? -3 : 3);
+                        else esq.o[selected].data[f].offset  += ((prior > current) ? -1 : 1);
+                        if(esq.o[selected].data[f].offset > 0x7F) esq.o[selected].data[f].offset = 0x7F;
+                        else if(esq.o[selected].data[f].offset < -0x7F) esq.o[selected].data[f].offset = -0x7F;
                         break;
 
                     case PAGE_NOTE: 
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
                             if(hold[ENCDR]) 
                             {
-                                cap /= fabsf(cap);
-                                esq.o[selected_track].data[f].octave -= cap;
-                                if(esq.o[selected_track].data[f].octave > 9) esq.o[selected_track].data[f].octave = 9;
-                                else if(esq.o[selected_track].data[f].octave < 0) esq.o[selected_track].data[f].octave = 0;
+                                esq.o[selected].data[f].octave -= ((cap > 0)? 1:-1);
+                                if(esq.o[selected].data[f].octave > 9) esq.o[selected].data[f].octave = 9;
+                                else if(esq.o[selected].data[f].octave < 0) esq.o[selected].data[f].octave = 0;
                             }
                             else 
                             {
-                                cap /= fabsf(cap);
-                                esq.o[selected_track].data[f].degree -= cap;
-                                if(esq.o[selected_track].data[f].degree > (esq.o[selected_track].scale.width - 1)) 
-                                esq.o[selected_track].data[f].degree = esq.o[selected_track].scale.width - 1;
-                                else if(esq.o[selected_track].data[f].degree <  0) esq.o[selected_track].data[f].degree = 0;
+                                esq.o[selected].data[f].degree -= ((cap > 0)? 1:-1);
+                                if(esq.o[selected].data[f].degree > (esq.o[selected].scale.width - 1)) 
+                                esq.o[selected].data[f].degree = esq.o[selected].scale.width - 1;
+                                else if(esq.o[selected].data[f].degree <  0) esq.o[selected].data[f].degree = 0;
                             }
-                            cap = 0.0f;
-                            esq.o[selected_track].data[f].recount = true;
+                            cap = 0;
+                            esq.o[selected].data[f].recount = true;
                         }
                         break;
                     default: 
                         break;
                 }
-                note_from_degree(&esq.o[selected_track].scale, &esq.o[selected_track].data[f]);
-                repaint_display = true;
+                note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);
+                repaint = true;
             }
 
             else if(page == PAGE_MAIN)
@@ -144,43 +144,39 @@ void core1_interrupt_handler()
                 switch(line)
                 {
                     case 0: 
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            cap /= fabsf(cap);
-                            int bpm = esq.o[selected_track].bpm;
-                            bpm  -= cap;
+                            int bpm = esq.o[selected].bpm - ((cap > 0)? 1:-1);
                             if(bpm > 800) bpm = 800;
                             else if(bpm < 1) bpm = 1;
-                            reset_timestamp(&esq, selected_track, bpm);
-                            cap = 0.0f;
+                            reset_timestamp(&esq, selected, bpm);
+                            cap = 0;
                         }
                         break;
 
                     case 1: 
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            cap /= fabsf(cap);
-                            esq.o[selected_track].steps  -= cap;
-                            if(esq.o[selected_track].steps > 16) esq.o[selected_track].steps = 16;
-                            else if(esq.o[selected_track].steps < 2) esq.o[selected_track].steps = 2;
-                            cap = 0.0f;
+                            esq.o[selected].steps  -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].steps > 16) esq.o[selected].steps = 16;
+                            else if(esq.o[selected].steps < 2) esq.o[selected].steps = 2;
+                            cap = 0;
                         }
                         break;
 
                     case 2:
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            cap /= fabsf(cap);
-                            esq.o[selected_track].mode -= cap;
-                            if(esq.o[selected_track].mode > 3) esq.o[selected_track].mode = 3;
-                            else if(esq.o[selected_track].mode < 0) esq.o[selected_track].mode = 0;
-                            cap = 0.0f;
+                            esq.o[selected].mode -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].mode > 3) esq.o[selected].mode = 3;
+                            else if(esq.o[selected].mode < 0) esq.o[selected].mode = 0;
+                            cap = 0;
                         }       
                         break;         
                     default:
                         break;
                 }
-                repaint_display = true;
+                repaint = true;
             }
 
             else if(page == PAGE_DRFT)
@@ -188,56 +184,56 @@ void core1_interrupt_handler()
                 switch(line)
                 {
                     case 0: 
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            esq.o[selected_track].drift[0] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected_track].drift[0] > 0x40) esq.o[selected_track].drift[0] = 0x40;
-                            else if(esq.o[selected_track].drift[0] < 0) esq.o[selected_track].drift[0] = 0;
-                            cap = 0.0f;
+                            esq.o[selected].drift[0] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].drift[0] > 0x40) esq.o[selected].drift[0] = 0x40;
+                            else if(esq.o[selected].drift[0] < 0) esq.o[selected].drift[0] = 0;
+                            cap = 0;
                         }
                         break;
                     case 1:
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            esq.o[selected_track].drift[1] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected_track].drift[1] > 0x40) esq.o[selected_track].drift[1] = 0x40;
-                            else if(esq.o[selected_track].drift[1] < 0) esq.o[selected_track].drift[1] = 0;
-                            cap = 0.0f;
+                            esq.o[selected].drift[1] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].drift[1] > 0x40) esq.o[selected].drift[1] = 0x40;
+                            else if(esq.o[selected].drift[1] < 0) esq.o[selected].drift[1] = 0;
+                            cap = 0;
                         }
                         break;
                     case 2:
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            esq.o[selected_track].drift[2] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected_track].drift[2] > 12) esq.o[selected_track].drift[2] = 12;
-                            else if(esq.o[selected_track].drift[2] < 0) esq.o[selected_track].drift[2] = 0;
-                            cap = 0.0f;
+                            esq.o[selected].drift[2] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].drift[2] > 12) esq.o[selected].drift[2] = 12;
+                            else if(esq.o[selected].drift[2] < 0) esq.o[selected].drift[2] = 0;
+                            cap = 0;
                         }
                     case 3:
-                        if(fabsf(cap)>1.0f)
+                        if(abs(cap)>1000)
                         {
-                            esq.o[selected_track].drift[3] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected_track].drift[3] > 8) esq.o[selected_track].drift[3] = 8;
-                            else if(esq.o[selected_track].drift[3] < 0) esq.o[selected_track].drift[3] = 0;
-                            cap = 0.0f;
+                            esq.o[selected].drift[3] -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].drift[3] > 8) esq.o[selected].drift[3] = 8;
+                            else if(esq.o[selected].drift[3] < 0) esq.o[selected].drift[3] = 0;
+                            cap = 0;
                         }
                         break;
        
                     default:
                         break;
                 }
-                repaint_display = true;
+                repaint = true;
             }
             prior = current;
         }
 
-        if(refresh_display)
+        if(refresh)
         {
             ssd1306_set_pixels(&oled);
-            refresh_display = false;
+            refresh = false;
         }
         // REPAINT ////////////////////////////////////////////////////////////////////////////////
-        else if(repaint_display)
+        else if(repaint)
         {
             char str[16];
             switch (page)
@@ -245,77 +241,75 @@ void core1_interrupt_handler()
             case PAGE_NCDR:
                 sprintf(str, "%d", current);
                 ssd1306_log(&oled, str, 200, 0);
-                refresh_display = true;
+                refresh = true;
                 break;
 
             case PAGE_MAIN:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-                sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected_track].bpm);
+                sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].bpm);
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
-                sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].steps);
+                sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected].steps);
                 ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                const char* mode[] = {"FWD", "BWD", "PNG", "RND"};
-                sprintf(str, "%s MODE    : %s",(line==2)?lsel[1]:lsel[0], mode[esq.o[selected_track].mode]);
+                sprintf(str, "%s MODE    : %s",(line==2)?lsel[1]:lsel[0], mode[esq.o[selected].mode]);
                 ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "%s FREERUN : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected_track].freerun ? "ON" : "OFF");
+                sprintf(str, "%s FREERUN : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].freerun ? "ON" : "OFF");
                 ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
                 break;
             
             case PAGE_DRTN:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
 
                 ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
-                for(int i = 0; i < 16; i++)
+                for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_bar(&oled, esq.o[selected_track].data[i].value, i*8 + 1, 10, 0xFF, 40, 6, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].value, i*8 + 1, 10, 0xFF, 40, 6, true);
                 }
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
                 break;
 
             case PAGE_AUTO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-                sprintf(str, "AUTOMATA : %s", esq.o[selected_track].regenerate[0]? "ON":"OFF");
+                sprintf(str, "AUTOMATA : %s", esq.o[selected].regenerate[0]? "ON":"OFF");
                 ssd1306_print_string(&oled, 4, 0, str, 0, 0);
-                for(int i = 0; i < 8; i++)
+                for(int i = 0; i < 8; ++i)
                 {
-                    switch (esq.automata[selected_track].rule[i])
+                    switch (esq.automata[selected].rule[i])
                     {
-                        case 0: ssd1306_glyph(&oled, circle_u_8x8, 8, 8, 4 + 16*i, 20); break;
-                        case 1: ssd1306_glyph(&oled, circle_r_8x8, 8, 8, 4 + 16*i, 20); break;
-                        case 2: ssd1306_glyph(&oled, circle_d_8x8, 8, 8, 4 + 16*i, 20); break;
-                        case 3: ssd1306_glyph(&oled, circle_l_8x8, 8, 8, 4 + 16*i, 20); break;
+                        case 0: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8C, 0); break;
+                        case 1: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8D, 0); break;
+                        case 2: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8E, 0); break;
+                        case 3: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8F, 0); break;
                         default: break;
                     }
                 }
-                for(int i = 0; i < 4; i++)
+                for(int i = 0; i < 4; ++i)
                 {
-                    if(((esq.automata[selected_track].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
+                    if(((esq.automata[selected].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
                     else ssd1306_print_string(&oled, 4 + 32*i, 30, "X", 0, 0);
-                    if(((esq.automata[selected_track].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
+                    if(((esq.automata[selected].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
                     else ssd1306_print_string(&oled, 20 + 32*i, 30, "X", 0, 0);
                 }
-                for(int i = 0; i < 8; i++)
+                for(int i = 0; i < 8; ++i)
                 {
-                    if(esq.automata[selected_track].step[i] > 0)
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.automata[selected_track].step[i], 0);
+                    if(esq.automata[selected].step[i] > 0)
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].step[i], 0);
                     else
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0xA3 + esq.automata[selected_track].step[i], 0);
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].step[i], 0);
                 }
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
                 break;
 
 
@@ -323,49 +317,47 @@ void core1_interrupt_handler()
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
 
                 ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
-                for(int i = 0; i < 16; i++)
+                for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_bar(&oled, esq.o[selected_track].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
                 }
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
                 break;
 
             case PAGE_DRFT:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4, 0, "DRIFT", 0, 0);
-                sprintf(str, "%s VELOCITY : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected_track].drift[0]);
+                sprintf(str, "%s VELOCITY : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].drift[0]);
                 ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                sprintf(str, "%s OFFSET   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected_track].drift[1]);
+                sprintf(str, "%s OFFSET   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected].drift[1]);
                 ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "%s DEGREE   : %d",(line==2)?lsel[1]:lsel[0], esq.o[selected_track].drift[2]);
+                sprintf(str, "%s DEGREE   : %d",(line==2)?lsel[1]:lsel[0], esq.o[selected].drift[2]);
                 ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                sprintf(str, "%s OCTAVE   : %d",(line==3)?lsel[1]:lsel[0], esq.o[selected_track].drift[3]);
+                sprintf(str, "%s OCTAVE   : %d",(line==3)?lsel[1]:lsel[0], esq.o[selected].drift[3]);
                 ssd1306_print_string(&oled, 4, 40, str, 0, 0);
-
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
                 break;
 
             case PAGE_FFST:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-
                 ssd1306_print_string(&oled, 4, 0, "OFFSET", 0, 0);
-                for(int i = 0; i < 16; i++)
+                for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_cv_bar(&oled, esq.o[selected_track].data[i].offset, i*8 + 1, 10, 0xFF, 40, 6);
+                    ssd1306_progress_cv_bar(&oled, esq.o[selected].data[i].offset, i*8 + 1, 10, 0xFF, 40, 6);
                 }
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
                 break;
 
             case PAGE_NOTE:
@@ -373,28 +365,37 @@ void core1_interrupt_handler()
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
 
                 ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
-                ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected_track].scale.root], 0, 0);
-                const uint8_t xs[12] = { 56, 60, 66, 70, 76, 86, 90, 96,100,106,110,116};
-                const uint8_t ys[12] = { 10,  0, 10,  0, 10, 10,  0, 10,  0, 10,  0, 10};
-                for(int i = 0; i < 12; i++)
-                {
-                    if(esq.o[selected_track].scale.data & (0x800 >> i))
-                    ssd1306_glyph(&oled, circle_glyph_8x8f, 8, 8, xs[i], ys[i]);
-                    else
-                    ssd1306_glyph(&oled, circle_glyph_8x8h, 8, 8, xs[i], ys[i]);
+                ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
 
-                    ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected_track].data[i].chroma%12], 0, true);
-                    sprintf(s, "%d", esq.o[selected_track].data[i].octave);
+                for(int i = 0; i < 12; ++i)
+                {
+                    if(esq.o[selected].scale.data & (0x800 >> i))
+                    ssd1306_print_char(&oled, xs[i], ys[i], 0x82, 0);
+                    else
+                    ssd1306_print_char(&oled, xs[i], ys[i], 0x81, 0);
+                    ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
+                    sprintf(s, "%d", esq.o[selected].data[i].octave);
                     ssd1306_print_string(&oled,  6 + 10*i,  41, s, 0, true);
 
                 }
-                ssd1306_glyph(&oled, circle_glyph_8x8r, 8, 8, xs[esq.o[selected_track].scale.root], ys[esq.o[selected_track].scale.root]);
-
-                sprintf(str, "\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A\x9C\x9A ");
-                str[selected_track*2] = '\x9B';
+                ssd1306_print_char(&oled, xs[esq.o[selected].scale.root], ys[esq.o[selected].scale.root], 0x83, 0);
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81 ");
+                str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint_display = false;
-                refresh_display = true;
+                repaint = false;
+                refresh = true;
+                break;
+            
+            case PAGE_SAVE:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                sprintf(str, "%s", save? "SAVE":"LOAD");
+                for(int i = 0; i < 16; ++i)
+                {
+                    
+                }
+                ssd1306_print_string(&oled,  0,  0, str, 0, 0);
+                repaint = false;
+                refresh = true;
                 break;
 
             default:
@@ -403,14 +404,14 @@ void core1_interrupt_handler()
         }       
         if(hold[BTNUP])
         {
-            if(page == PAGE_NOTE) scale_led(&selected_track);
-            else swith_led(&selected_track);
+            if(page == PAGE_NOTE) scale_led(&selected);
+            else swith_led(&selected);
         }
-        else swith_led(&selected_track);
+        else swith_led(&selected);
 
         if(_4067_get())
         {
-            switch (_4067_iterator)
+            switch (sreg)
             {
                 case SHIFT:
                     if(!hold[SHIFT]) 
@@ -418,25 +419,25 @@ void core1_interrupt_handler()
                         if(tap_armed)
                         {   
                             if(last != SHIFT) tap_armed = false;
-                            int_fast32_t bpm = (esq.o[selected_track].bpm + 60000000/(time_us_32() - tap))/2;
-                            reset_timestamp(&esq, selected_track, bpm);
-                            if(!esq.o[selected_track].freerun)
+                            int bpm = (esq.o[selected].bpm + 60000000/(time_us_32() - tap))/2;
+                            reset_timestamp(&esq, selected, bpm);
+                            if(!esq.o[selected].freerun)
                             {
-                                for(int i = 0; i < _tracks; i++)
+                                for(int i = 0; i < TRACKS; ++i)
                                 {
                                     if(!esq.o[i].freerun)
                                     {
-                                        esq.o[i].bpm  = esq.o[selected_track].bpm;
-                                        esq.o[i].beat = esq.o[selected_track].beat;
-                                        esq.o[i].step = esq.o[selected_track].step;
-                                        esq.o[i].atom = esq.o[selected_track].atom;
+                                        esq.o[i].bpm  = esq.o[selected].bpm;
+                                        esq.o[i].beat = esq.o[selected].beat;
+                                        esq.o[i].step = esq.o[selected].step;
+                                        esq.o[i].atom = esq.o[selected].atom;
                                     }
                                 }
                             }                            
-                            repaint_display = true;
+                            repaint = true;
                         }
                         if(hold[ALTGR])
-                        if(page == PAGE_AUTO) { automata_rand(&esq.automata[selected_track]); repaint_display = true; }
+                        if(page == PAGE_AUTO) { automata_rand(&esq.automata[selected]); repaint = true; }
                         hold[SHIFT] = true;
                     }
                     last = SHIFT;
@@ -444,7 +445,10 @@ void core1_interrupt_handler()
                     break;
 
                 case ENCDR:
-                    hold[ENCDR] = true;
+                    if(!hold[ENCDR])
+                    {
+                        hold[ENCDR] = true;
+                    }
                     last = ENCDR;
                     break;
 
@@ -463,15 +467,14 @@ void core1_interrupt_handler()
                         {
                             if(page==PAGE_AUTO) 
                             {
-                                esq.o[selected_track].regenerate[0] ^= 1;
-                                repaint_display = true;
+                                esq.o[selected].regenerate[0] ^= 1;
+                                repaint = true;
                             }
                         }
                         else if((page == PAGE_MAIN) || (page == PAGE_DRFT))
                         {
-                            line--;
-                            if(line < 0) line = 3;
-                            repaint_display = true;
+                            if(--line < 0) line = 3;
+                            repaint = true;
                         }
                         hold[BTNUP] = true;
                     }
@@ -484,9 +487,13 @@ void core1_interrupt_handler()
                         switch (esq.state)
                         {
                         case PLAY:
-                            esq.state = PAUSE;
+                            if(hold[SHIFT]) esq.state = STOP;
+                            else esq.state = PAUSE;
                             break;
                         case PAUSE: 
+                            esq.state = PLAY;
+                            break;
+                        case STOP:
                             esq.state = PLAY;
                             break;
                         default:
@@ -500,11 +507,12 @@ void core1_interrupt_handler()
                 case BTNDW:
                     if(!hold[BTNDW])
                     {
-                        if((page == PAGE_MAIN) || (page == PAGE_DRFT))
+                        if(hold[BTNUP]) page = PAGE_SAVE;
+                        else if((page == PAGE_MAIN) || (page == PAGE_DRFT))
                         {
                             line++;
                             if(line > 3) line = 0;
-                            repaint_display = true;
+                            repaint = true;
                         }
                         hold[BTNDW] = true;
                     }
@@ -516,14 +524,14 @@ void core1_interrupt_handler()
                     { 
                         if(hold[ALTGR])
                         {
-                            selected_track--;
-                            if(selected_track < 0) selected_track = _tracks - 1;
+                            --selected;
+                            if(selected < 0) selected = TRACKS - 1;
                         }
                         else
                         {
-                            page--; 
+                            --page; 
                         }
-                        repaint_display = true; 
+                        repaint = true; 
                         hold[PGLFT] = true;
                     } 
                     last = PGLFT;
@@ -534,14 +542,14 @@ void core1_interrupt_handler()
                     { 
                         if(hold[ALTGR])
                         {
-                            selected_track++;
-                            if(selected_track >= _tracks) selected_track = 0;
+                            ++selected;
+                            if(selected >= TRACKS) selected = 0;
                         }
                         else
                         {
-                            page++;
+                            ++page;
                         }
-                        repaint_display = true; 
+                        repaint = true; 
                         hold[PGRGT] = true;
                     } 
                     last = PGRGT;
@@ -556,21 +564,21 @@ void core1_interrupt_handler()
                             {
                                 if(hold[ALTGR]) 
                                 {
-                                    esq.o[selected_track].scale.root = ccol&3;
-                                    set_scale(&esq.o[selected_track].scale);
-                                    recount_all(&esq, selected_track);
-                                    repaint_display = true;
+                                    esq.o[selected].scale.root = ccol&3;
+                                    set_scale(&esq.o[selected].scale);
+                                    recount_all(&esq, selected);
+                                    repaint = true;
                                 }
                                 else
                                 {
-                                    esq.o[selected_track].scale.data ^= (0x800 >> (ccol&3));
-                                    set_scale(&esq.o[selected_track].scale);
-                                    recount_all(&esq, selected_track);
-                                    repaint_display = true;
+                                    esq.o[selected].scale.data ^= (0x800 >> (ccol&3));
+                                    set_scale(&esq.o[selected].scale);
+                                    recount_all(&esq, selected);
+                                    repaint = true;
                                 }
                             }
                         }
-                        else if(hold[SHIFT]) esq.o[selected_track].trigger[ccol] = !esq.o[selected_track].trigger[ccol]; 
+                        else if(hold[SHIFT]) esq.o[selected].trigger[ccol] = !esq.o[selected].trigger[ccol]; 
                         hold_matrix[ccol] = true; 
                     } 
                     last = MROW0;
@@ -585,21 +593,21 @@ void core1_interrupt_handler()
                             {
                                 if(hold[ALTGR]) 
                                 {
-                                    esq.o[selected_track].scale.root = ((ccol&3) + 4);
-                                    set_scale(&esq.o[selected_track].scale);
-                                    recount_all(&esq, selected_track);
-                                    repaint_display = true;
+                                    esq.o[selected].scale.root = ((ccol&3) + 4);
+                                    set_scale(&esq.o[selected].scale);
+                                    recount_all(&esq, selected);
+                                    repaint = true;
                                 }
                                 else
                                 {
-                                    esq.o[selected_track].scale.data ^= (0x80 >> (ccol&3));
-                                    set_scale(&esq.o[selected_track].scale);
-                                    recount_all(&esq, selected_track);
-                                    repaint_display = true;
+                                    esq.o[selected].scale.data ^= (0x80 >> (ccol&3));
+                                    set_scale(&esq.o[selected].scale);
+                                    recount_all(&esq, selected);
+                                    repaint = true;
                                 }
                             }
                         }
-                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 4] = !esq.o[selected_track].trigger[ccol + 4]; 
+                        if(hold[SHIFT]) esq.o[selected].trigger[ccol + 4] = !esq.o[selected].trigger[ccol + 4]; 
                         hold_matrix[ccol + 4] = true; 
                     } 
                     last = MROW1;
@@ -614,21 +622,21 @@ void core1_interrupt_handler()
                             {
                                 if(hold[ALTGR]) 
                                 {
-                                    esq.o[selected_track].scale.root = ((ccol&3) + 8);
-                                    set_scale(&esq.o[selected_track].scale);
-                                    recount_all(&esq, selected_track);
-                                    repaint_display = true;
+                                    esq.o[selected].scale.root = ((ccol&3) + 8);
+                                    set_scale(&esq.o[selected].scale);
+                                    recount_all(&esq, selected);
+                                    repaint = true;
                                 }
                                 else
                                 {
-                                    esq.o[selected_track].scale.data ^= (0x8 >> (ccol&3));
-                                    set_scale(&esq.o[selected_track].scale);
-                                    recount_all(&esq, selected_track);
-                                    repaint_display = true;
+                                    esq.o[selected].scale.data ^= (0x8 >> (ccol&3));
+                                    set_scale(&esq.o[selected].scale);
+                                    recount_all(&esq, selected);
+                                    repaint = true;
                                 }
                             }
                         }
-                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 8] = !esq.o[selected_track].trigger[ccol + 8]; 
+                        if(hold[SHIFT]) esq.o[selected].trigger[ccol + 8] = !esq.o[selected].trigger[ccol + 8]; 
                         hold_matrix[ccol + 8] = true; 
                     } 
                     last = MROW2;
@@ -637,25 +645,27 @@ void core1_interrupt_handler()
                 case MROW3: 
                     if(!hold_matrix[ccol + 12]) 
                     { 
-                        if(hold[SHIFT]) esq.o[selected_track].trigger[ccol + 12] = !esq.o[selected_track].trigger[ccol + 12]; 
+                        if(hold[SHIFT]) esq.o[selected].trigger[ccol + 12] = !esq.o[selected].trigger[ccol + 12]; 
                         hold_matrix[ccol + 12] = true; 
                     } 
                     last = MROW3;
                     break;
-                default: break;
+
+                default: 
+                    break;
             }
             if(page > PAGES) page = 0;
             else if(page < 0) page = PAGES - 1;
         }
         else 
         {
-            if(_4067_iterator < 4) hold_matrix[_4067_iterator * 4 + ccol] = false;
-            else if(_4067_iterator == SHIFT) 
+            if(sreg < 4) hold_matrix[sreg * 4 + ccol] = false;
+            else if(sreg == SHIFT) 
             { 
                 if(last == SHIFT) tap_armed = true;// tap = time_us_32(); 
                 hold[SHIFT] = false;
             }
-            else hold[_4067_iterator] = false;
+            else hold[sreg] = false;
         }
     }
     multicore_fifo_clear_irq(); // Clear interrupt
@@ -685,8 +695,8 @@ int main()
     tusb_init();
 	multicore_launch_core1(core1_entry);
     set_sys_clock_khz(133000, true);
-    ////////////////////////////////////////////////////////////////////////////////
-    // OLED Init ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////
+    // OLED Init //////////////////////////////////////////////////////////////////
     i2c_init(i2c1, 3200000);
     gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
@@ -694,35 +704,37 @@ int main()
     gpio_pull_up(SCL_PIN);
     ssd1306_init(&oled, 0x3C, i2c1, BLACK);
     ssd1306_set_full_rotation(&oled, 0);
-    // MIDI DIN Init //////////////////////////////////////////////////////////
+    // MIDI DIN Init //////////////////////////////////////////////////////////////
     uart_init(UART_ID, BAUD_RATE);
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-    // 595 Init ///////////////////////////////////////////////////////////////
+    // 595 Init ///////////////////////////////////////////////////////////////////
     shift_register_74HC595_init(&sr, SPI_PORT, DATA_595, CLOCK_595, LATCH_595);
     gpio_set_outover(DATA_595, GPIO_OVERRIDE_INVERT); 
     _74HC595_set_all_low(&sr);
-    // 4067 Init //////////////////////////////////////////////////////////////
+    // 4067 Init //////////////////////////////////////////////////////////////////
     _4067_init();
     keypad_init();
-    ///////////////////////////////////////////////////////////////////////////
-    // Sequencer Init /////////////////////////////////////////////////////////
-    absolute_time_t tts[_tracks]; // Trigger ON 
-    absolute_time_t gts[_tracks]; // Gate OFF
-    bool gate[_tracks]; // OFF is pending
-    srand(time_us_32());
+    ///////////////////////////////////////////////////////////////////////////////
+    // Sequencer Init /////////////////////////////////////////////////////////////
+    absolute_time_t tts[TRACKS]; // Trigger ON 
+    absolute_time_t gts[TRACKS]; // Gate OFF
+    bool gate[TRACKS];           // OFF is pending
+    int  rv[TRACKS];             // Revolution counters
+    srand(time_us_32());         // Random seed
+
     sequencer_init(&esq, 120);
-    for(int i = 0; i < _tracks; i++) sequencer_rand(&esq, i);
-    uint32_t rv[_tracks]; // Revolution counters
+    for(int i = 0; i < TRACKS; ++i) sequencer_rand(&esq, i);
+    multicore_fifo_push_blocking(0);
     ////////////////////////////////////////////////////////////////////////////////
     // CORE 0 Loop /////////////////////////////////////////////////////////////////
-    
-    arm(100, tts);
+    ARM:
+    if(esq.state == PLAY) arm(100, tts);
     RUN:
     while (esq.state == PLAY) 
 	{
         tud_task();
-        for(int i = 0; i < _tracks; i++)
+        for(int i = 0; i < TRACKS; ++i)
         {
             if(esq.o[i].data[esq.o[i].current].recount) 
             {
@@ -755,7 +767,8 @@ int main()
                     gate[i] = false;
                 }
             }
-            // AUTOMATA //////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////////////////
+            // AUTOMATA //////////////////////////////////////////////////////////////////////////
             if(esq.o[i].regenerate[0])
             {
                 if(rv[i] != esq.o[i].revolutions)
@@ -767,11 +780,13 @@ int main()
                 }
             }
         }
-        multicore_fifo_push_blocking(0);        
+        multicore_fifo_push_blocking(0);
     }
+    //////////////////////////////////////////////////////////////////////////////////////
+    // Paused ////////////////////////////////////////////////////////////////////////////
     while(esq.state == PAUSE) 
 	{
-        for(int i = 0; i < _tracks; i++)
+        for(int i = 0; i < TRACKS; ++i)
         {
             if(time_reached(gts[i]))
             {
@@ -785,9 +800,11 @@ int main()
         multicore_fifo_push_blocking(0);
         if(esq.state == PLAY) goto RUN;
     }
+    //////////////////////////////////////////////////////////////////////////////////////
+    // Stopped ///////////////////////////////////////////////////////////////////////////
     while(esq.state == STOP) 
 	{
-        for(int i = 0; i < _tracks; i++)
+        for(int i = 0; i < TRACKS; ++i)
         {
             if(time_reached(gts[i]))
             {
@@ -797,31 +814,39 @@ int main()
                     gate[i] = false;
                 }
             }
+            esq.o[i].current = 0;
         }
-        if(esq.state == PLAY) goto RUN;
+        multicore_fifo_push_blocking(0);
+        if(esq.state == PLAY) goto ARM;
     }
-
     return 0;
 }
 
-
-inline static void send(uint8_t id, const uint8_t status) // Send MIDI message /////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+// Send MIDI message //////////////////////////////////////////////////////////////////
+inline static void send(uint8_t id, const uint8_t status) 
 {
     switch (status)
     {
-    case 0x80:
-        
+    case 0x80: // Note ON
         uint8_t off[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, 0 };
         _send_note(off);
         tud_midi_stream_write(cable_num, off, 3);
         break;
-    case 0x90:
-        int_fast16_t vd = 0;
-        if(esq.o[id].drift[0]) vd = rand_in_range(-esq.o[id].drift[0], esq.o[id].drift[0]);
-        uint8_t on[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity + vd };
+
+    case 0x90: // Note OFF
+        int velocity = esq.o[id].data[esq.o[id].current].velocity;
+        if(esq.o[id].drift[0]) 
+        {
+            velocity = esq.o[id].data[esq.o[id].current].velocity + rand_in_range(-esq.o[id].drift[0], esq.o[id].drift[0]);
+            if(velocity > 0x7F) velocity = 0x7F;
+            else if(velocity < 1) velocity = 1;
+        }
+        uint8_t on[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, velocity };
         _send_note(on);
         tud_midi_stream_write(cable_num, on, 3);
         break;
+
     default:
         break;
     }
@@ -836,29 +861,32 @@ inline static void send(uint8_t id, const uint8_t status) // Send MIDI message /
     // }
 }
 
-inline static void arm(uint32_t lag, absolute_time_t* t) // Prepare to play routine ////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+// Prepare to play routine ///////////////////////////////////////////////////////////////
+inline static void arm(uint lag, absolute_time_t* t) 
 {
-    int8_t f = esq.o[0].data[esq.o[0].current].offset;
-    for(int i = 1; i < _tracks; i++)
+    int f = esq.o[0].data[esq.o[0].current].offset;
+    for(int i = 1; i < TRACKS; ++i)
     {
         if(f > esq.o[i].data[esq.o[i].current].offset)
         {
             f = esq.o[i].data[esq.o[i].current].offset;
         }
     }
-    for(int i = 0; i < _tracks; i++)
+    for(int i = 0; i < TRACKS; ++i)
     {
         t[i] = make_timeout_time_ms(esq.o[i].data[esq.o[i].current].offset - f + lag);
     }
 }
 
-inline static void swith_led(const int_fast8_t* track)
+//////////////////////////////////////////////////////////////////////////////////////
+// Loop led run //////////////////////////////////////////////////////////////////////
+inline static void swith_led(const int* track)
 {
-    static uint8_t led;
+    static int led;
     _74HC595_set_all_low(&sr);
     if(esq.o[*track].trigger[led]) pset(&sr, led&3, led>>2, 4);
-    led++;
-    if(led > _steps) 
+    if(++led > STEPS) 
     {
         led = 0;
         _74HC595_set_all_low(&sr);
@@ -866,16 +894,17 @@ inline static void swith_led(const int_fast8_t* track)
     }
 }
 
-inline static void scale_led(const int_fast8_t* track)
+//////////////////////////////////////////////////////////////////////////////////////
+// Scale representation //////////////////////////////////////////////////////////////
+inline static void scale_led(const int* track)
 {
-    static uint8_t led;
+    static int led;
     _74HC595_set_all_low(&sr);
     if((esq.o[*track].scale.data&(0x800>>led))) pset(&sr, led&3, led>>2, 2);
-    led++;
-    if(led > 11) 
+    if(++led > 11) 
     {
         led = 0;
         _74HC595_set_all_low(&sr);
-        pset(&sr, esq.o[*track].scale.root &3, esq.o[*track].scale.root >>2, 4);
+        pset(&sr, esq.o[*track].scale.root &3, esq.o[*track].scale.root>>2, 4);
     }
 }

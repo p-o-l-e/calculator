@@ -10,11 +10,11 @@
 typedef struct
 {
     bool field[ROWS * COLS];
-    int_fast8_t current;
-    int_fast8_t rule[16];
-    int_fast8_t step[8];
-    int_fast8_t pos[2];
-    int_fast8_t iterations;
+    int current;
+    int rule[16];
+    int step[8];
+    int pos[2];
+    int iterations;
 
 } automata_t;
 
