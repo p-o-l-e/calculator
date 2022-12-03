@@ -1,7 +1,10 @@
 #pragma once
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
-#include "pico/binary_info.h"
+#include "hardware/clocks.h"
+#include "cell/midi_uart.h"
+#include "SSD1306/ssd1306.h"
+#include "CD74HC4067.h"
 #include "SSD1306/ssd1306.h"
 #include "74HC595/sr_common.h"
 #include "quadrature-decoder/quadrature_decoder.h"
@@ -23,10 +26,10 @@
 #define PGRGT       5   // Page Right
 #define ALTGR       6   // Upper alt
 #define ENCDR       7   // Encoder button
-#define BTNUP       8
-#define BTNCT       9
-#define BTNDW       10
-#define SHIFT       11
+#define BTNUP       8   // Upper button
+#define BTNCT       9   // Center button
+#define BTNDW       10  // Lower button
+#define SHIFT       11  // Shift
 
 #define N4067       12  // 4067 Inputs
 // Encoder ////////////////////////////
