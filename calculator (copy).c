@@ -655,15 +655,13 @@ void core1_interrupt_handler()
                                 if(hold[ALTGR]) 
                                 {
                                     esq.o[selected].scale.root = ccol&3;
-                                    // set_scale(&esq.o[selected].scale);
-                                    transpose_root(&esq.o[selected].scale);
+                                    set_scale(&esq.o[selected].scale);
                                     recount_all(&esq, selected);
                                     repaint = true;
                                 }
                                 else
                                 {
                                     esq.o[selected].scale.data ^= (0x800 >> (ccol&3));
-                                    // transpose_root(&esq.o[selected].scale);
                                     set_scale(&esq.o[selected].scale);
                                     recount_all(&esq, selected);
                                     repaint = true;
@@ -686,15 +684,13 @@ void core1_interrupt_handler()
                                 if(hold[ALTGR]) 
                                 {
                                     esq.o[selected].scale.root = ((ccol&3) + 4);
-                                    transpose_root(&esq.o[selected].scale);
-                                    // set_scale(&esq.o[selected].scale);
+                                    set_scale(&esq.o[selected].scale);
                                     recount_all(&esq, selected);
                                     repaint = true;
                                 }
                                 else
                                 {
                                     esq.o[selected].scale.data ^= (0x80 >> (ccol&3));
-                                    // transpose_root(&esq.o[selected].scale);
                                     set_scale(&esq.o[selected].scale);
                                     recount_all(&esq, selected);
                                     repaint = true;
@@ -717,15 +713,13 @@ void core1_interrupt_handler()
                                 if(hold[ALTGR]) 
                                 {
                                     esq.o[selected].scale.root = ((ccol&3) + 8);
-                                    transpose_root(&esq.o[selected].scale);
-                                    // set_scale(&esq.o[selected].scale);
+                                    set_scale(&esq.o[selected].scale);
                                     recount_all(&esq, selected);
                                     repaint = true;
                                 }
                                 else
                                 {
                                     esq.o[selected].scale.data ^= (0x8 >> (ccol&3));
-                                    // transpose_root(&esq.o[selected].scale);
                                     set_scale(&esq.o[selected].scale);
                                     recount_all(&esq, selected);
                                     repaint = true;

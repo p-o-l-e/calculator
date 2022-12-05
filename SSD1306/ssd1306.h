@@ -69,7 +69,7 @@ typedef enum
 
 typedef struct 
 {
-    uint8_t addr;
+    uint16_t addr;
     i2c_inst_t *i2c;
     uint8_t width;
     uint8_t height;
@@ -133,12 +133,12 @@ static inline void ssd1306_set_full_rotation(ssd1306_t *ssd, bool rotated)
 
 static inline void ssd1306_buffer_set_pixels_direct(ssd1306_t *ssd, const uint8_t *pixels) 
 {
-    memcpy(ssd->buffer, pixels, ssd->width * ssd->height / 8U);
+    memcpy(ssd->buffer, pixels, ssd->width * ssd->height / 8);
 }
 
 static inline void ssd1306_buffer_fill_pixels(ssd1306_t *ssd, ssd1306_color_t color) 
 {
-    memset(ssd->buffer, (color == WHITE) ? 0xff : 0x00, ssd->width * ssd->height / 8U);
+    memset(ssd->buffer, (color == WHITE) ? 0xff : 0x00, ssd->width * ssd->height / 8);
 }
 
 static inline void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y)

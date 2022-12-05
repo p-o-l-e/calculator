@@ -8,11 +8,13 @@ include(tinyusb/hw/bsp/family_support.cmake)
 include(tinyusb/hw/bsp/${FAMILY}/family.cmake)
 
 project(calculator C CXX ASM)
+family_get_project_name(calculator ${CMAKE_CURRENT_LIST_DIR})
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-pico_sdk_init()
+#pico_sdk_init()
+family_initialize_project(calculator ${CMAKE_CURRENT_LIST_DIR}/family)
 
 add_executable(calculator
 	calculator.c
@@ -23,6 +25,7 @@ pico_enable_stdio_usb(calculator 0)
 pico_enable_stdio_uart(calculator 1)
 
 target_include_directories(calculator PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+
 family_configure_device_example(calculator)
 
 add_subdirectory(SSD1306 build/SSD1306)

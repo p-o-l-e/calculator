@@ -5,12 +5,12 @@ void set_scale(scale_t* scale)
 {
     scale->data |= (1<<(11 - scale->root));
     unsigned s = 0;
-    for(int i = scale->root; i < 12 + scale->root; i++)
+    for(int i = scale->root; i < 12 + scale->root; ++i)
     {
         if(scale->data & (0x800 >> (i % 12)))
         {
             scale->degree[s] = i - scale->root;
-            s++;
+            ++s;
         }
     }
     scale->width = s;
@@ -19,4 +19,21 @@ void set_scale(scale_t* scale)
 void note_from_degree(scale_t* scale, note* o)
 {
     o->chroma = scale->root + scale->degree[o->degree % scale->width] + 12 * o->octave;
+}
+//  rl 
+// 0011 1000 1000
+//   l   r
+// 0011 1000 1000
+void transpose_root(scale_t* scale)
+{
+    unsigned st = 0x800;
+    unsigned l = 0;
+    while (!(scale->data & (0x800 >> l)))
+    {
+        ++l; if (l > 11) break;
+    }
+    if(scale->root < l) scale->data <<= (l - scale->root);
+    else if(scale->root > l) scale->data = rightrot12(scale->data, scale->root - l);
+    set_scale(scale);
+
 }

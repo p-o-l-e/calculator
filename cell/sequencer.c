@@ -134,8 +134,8 @@ void reset_timestamp(sequencer* o, int track, int bpm)
     else if(bpm < 1) bpm = 1;
     o->o[track].bpm  = bpm;
     o->o[track].beat = 60000/o->o[track].bpm;
-    o->o[track].step = o->o[track].beat>>2; // /4
-    o->o[track].atom = o->o[track].step>>5; // /32
+    o->o[track].step = o->o[track].beat/4; // /4
+    o->o[track].atom = o->o[track].step/32; // /32
     if(o->o[track].atom <= 0) o->o[track].atom = 1;
 }
 

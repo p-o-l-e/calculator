@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "utility.h"
 #include "midi.h"
 
 typedef struct
@@ -14,4 +15,5 @@ typedef struct
 } scale_t;
 
 void set_scale(scale_t* scale);
+void transpose_root(scale_t* scale);
 void note_from_degree(scale_t* scale, note* o);

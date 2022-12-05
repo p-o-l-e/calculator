@@ -11,10 +11,10 @@
 
 typedef struct 
 {
-    unsigned a : 1;
-    unsigned b : 1;
-    unsigned c : 1;
-    unsigned d : 1;
+    int a : 1;
+    int b : 1;
+    int c : 1;
+    int d : 1;
 
 } _4067_mode;
 
@@ -54,12 +54,13 @@ void _4067_init()
 
 }
 
-void _4067_switch(int pin)
+void _4067_switch(int pin, int lag)
 {  
     gpio_put(S0, __4067[pin].a);
     gpio_put(S1, __4067[pin].b);
     gpio_put(S2, __4067[pin].c);
     gpio_put(S3, __4067[pin].d);
+    sleep_us(lag);
 }
 
 bool _4067_get()
