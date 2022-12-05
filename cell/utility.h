@@ -11,10 +11,10 @@ inline int rand_in_range(int l, int r)
 
 inline unsigned rightrot12(unsigned x, unsigned n)
 {
-  return ((x >> n) | (x << (12 - n)))&0xFFF;
+  return ((x >> n) | (x << (12 - n))) & 0xFFF;
 }
 
 inline unsigned leftrot12(unsigned x, unsigned n)
 {
-  return ((x << n) | (x >> (12 - n)))&0xFFF;
+  return ((x << n) | (x >> (12 - n))) & 0xFFF;
 }
