@@ -27,7 +27,7 @@
 #include "interface.h"
 #include "suspend.h"
 #include "io.h"
-#include "fs.h"
+// #include "fs.h"
 
 
 inline static void swith_led(const int* track);
@@ -42,8 +42,8 @@ static sequencer esq;
 void core1_interrupt_handler() 
 {
     quadrature_decoder ncoder;
-    lfs_t      fs;
-    lfs_file_t init;
+    // lfs_t      fs;
+    // lfs_file_t init;
     // load_file(&fs, &init, "/PRESETS/INIT", &esq);
 
     int ncoder_index;
@@ -77,7 +77,7 @@ void core1_interrupt_handler()
     {
         uint16_t raw = multicore_fifo_pop_blocking();  
         if(++sreg >= N4067) sreg = 0;
-        _4067_switch(sreg, 0);
+        _4067_switch(sreg);
         int ccol = keypad_switch();
         // ENCODER /////////////////////////////////////////////////////////////////////////////////////////
         int current = get_count(&ncoder, ncoder_index);
@@ -102,6 +102,7 @@ void core1_interrupt_handler()
                         else esq.o[selected].data[f].value += ((prior > current) ? -1 : 1);
                         if(esq.o[selected].data[f].value > 0xFF) esq.o[selected].data[f].value = 0xFF;
                         else if(esq.o[selected].data[f].value < 1) esq.o[selected].data[f].value = 1;
+                        repaint = true;
                         break;
 
                     case PAGE_VELO: 
@@ -109,6 +110,7 @@ void core1_interrupt_handler()
                         else esq.o[selected].data[f].velocity  += ((prior > current) ? -1 : 1);
                         if(esq.o[selected].data[f].velocity > 0x7F) esq.o[selected].data[f].velocity = 0x7F;
                         else if(esq.o[selected].data[f].velocity < 1) esq.o[selected].data[f].velocity = 1;
+                        repaint = true;
                         break;
 
                     case PAGE_FFST: 
@@ -116,6 +118,7 @@ void core1_interrupt_handler()
                         else esq.o[selected].data[f].offset  += ((prior > current) ? -1 : 1);
                         if(esq.o[selected].data[f].offset > 0x7F) esq.o[selected].data[f].offset = 0x7F;
                         else if(esq.o[selected].data[f].offset < -0x7F) esq.o[selected].data[f].offset = -0x7F;
+                        repaint = true;
                         break;
 
                     case PAGE_NOTE: 
@@ -135,14 +138,14 @@ void core1_interrupt_handler()
                                 else if(esq.o[selected].data[f].degree <  0) esq.o[selected].data[f].degree = 0;
                             }
                             cap = 0;
-                            esq.o[selected].data[f].recount = true;
+                            repaint = true;
+                            note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);                        
                         }
                         break;
                     default: 
                         break;
                 }
-                note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);
-                repaint = true;
+                
             }
 
             else if(page == PAGE_MAIN)
@@ -157,6 +160,7 @@ void core1_interrupt_handler()
                             else if(bpm < 1) bpm = 1;
                             reset_timestamp(&esq, selected, bpm);
                             cap = 0;
+                            repaint = true;
                         }
                         break;
 
@@ -167,6 +171,7 @@ void core1_interrupt_handler()
                             if(esq.o[selected].steps > 16) esq.o[selected].steps = 16;
                             else if(esq.o[selected].steps < 2) esq.o[selected].steps = 2;
                             cap = 0;
+                            repaint = true;
                         }
                         break;
 
@@ -177,13 +182,48 @@ void core1_interrupt_handler()
                             if(esq.o[selected].mode > 3) esq.o[selected].mode = 3;
                             else if(esq.o[selected].mode < 0) esq.o[selected].mode = 0;
                             cap = 0;
+                            repaint = true;
                         }       
                         break;
 
                     default:
                         break;
                 }
-                repaint = true;
+            }
+            else if(page == PAGE_NOTE)
+            {
+                if(hold[BTNUP])
+                {
+                    if(abs(cap)>1000)
+                    {
+                        for(int i = 0; i < STEPS; i++)
+                        {
+                            esq.o[selected].data[i].octave -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].data[i].octave > 9) esq.o[selected].data[i].octave = 9;
+                            else if(esq.o[selected].data[i].octave < 0) esq.o[selected].data[i].octave = 0;
+                            // esq.o[selected].data[i].recount = true;
+                        }  
+                        recount_all(&esq, selected);        
+                        cap = 0;
+                        repaint = true;
+                    }                
+                }
+                else if(hold[ALTGR])
+                {
+                    if(abs(cap)>1000)
+                    {
+                        for(int i = 0; i < STEPS; i++)
+                        {
+                            esq.o[selected].data[i].degree -= ((cap > 0)? 1:-1);
+                            if(esq.o[selected].data[i].degree > 11) esq.o[selected].data[i].degree -= 12;
+                            else if(esq.o[selected].data[i].degree < 0) esq.o[selected].data[i].degree += 12;
+                        }  
+                        recount_all(&esq, selected);        
+                        cap = 0;
+                        repaint = true;
+                    }                
+                }
+                
             }
 
             else if(page == PAGE_DRFT)
@@ -458,7 +498,7 @@ void core1_interrupt_handler()
                         else if(tap_armed)
                         {   
                             if(last != SHIFT) tap_armed = false;
-                            int bpm = (esq.o[selected].bpm + 60000000/(time_us_32() - tap))/2;
+                            int bpm = (esq.o[selected].bpm + 60000000/(time_us_32() - tap))>>1;
                             reset_timestamp(&esq, selected, bpm);
                             if(!esq.o[selected].freerun)
                             {
@@ -523,12 +563,12 @@ void core1_interrupt_handler()
                         char dir[8];
                         case PAGE_SAVE:
                             sprintf(dir, "INIT_%d", line);
-                            save_file(&fs, &init, dir, &esq);
+                            // save_file(&fs, &init, dir, &esq);
                             break;
                         
                         case PAGE_LOAD:
                             sprintf(dir, "INIT_%d", line);
-                            load_file(&fs, &init, dir, &esq);
+                            // load_file(&fs, &init, dir, &esq);
                             break;
                         
                         default:
@@ -560,7 +600,7 @@ void core1_interrupt_handler()
                         if(hold[BTNUP]) page = PAGE_SAVE;
                         else if((page == PAGE_MAIN)||(page == PAGE_DRFT)||(page == PAGE_SAVE)||(page == PAGE_LOAD))
                         {
-                            line++;
+                            ++line;
                             if(line > 3) line = 0;
                             repaint = true;
                         }
@@ -709,7 +749,7 @@ void core1_interrupt_handler()
         }
         else 
         {
-            if(sreg < 4) hold_matrix[sreg * 4 + ccol] = false;
+            if(sreg < 4) hold_matrix[sreg << 2 + ccol] = false;
             else if(sreg == SHIFT) 
             { 
                 if(last == SHIFT) tap_armed = true;// tap = time_us_32(); 
