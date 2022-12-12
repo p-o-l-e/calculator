@@ -29,7 +29,9 @@ void track_init(track_t* o)
     o->mode     = 0;
     o->steps    = STEPS;
     o->revolutions = 0;
+    o->trigger = 0;
     o->freerun  = false;
+    o->euclidean = false;
     o->regenerate[0] = 0;
     o->regenerate[1] = 0;
     o->regenerate[2] = 0;
@@ -44,7 +46,6 @@ void track_init(track_t* o)
         o->data[i].velocity = 0x7F;
         o->data[i].value    = 8;
         o->data[i].offset   = 0;
-        o->trigger[i] = false;
     }
 }
 
@@ -112,12 +113,7 @@ note get_note(track_t* o)
 
 void insert_bits(track_t* o, uint16_t bits)
 {
-    uint16_t s = bits;
-    for(int i = STEPS - 1; i >= 0; --i) 
-    {
-        o->trigger[i] = s & 1;
-        s >>= 1;
-    }
+    o->trigger = bits;
 }
 
 void (*loop_sequence[])(track_t*) = 
@@ -130,7 +126,7 @@ void (*loop_sequence[])(track_t*) =
 
 void reset_timestamp(sequencer* o, int track, int bpm)
 {
-    if(bpm > 800) bpm = 800;
+    if(bpm > 999) bpm = 999;
     else if(bpm < 1) bpm = 1;
     o->o[track].bpm  = bpm;
     o->o[track].beat = 60000/o->o[track].bpm;
@@ -176,3 +172,50 @@ void recount_all(sequencer* o, int track)
         note_from_degree(&o->o[track].scale, &o->o[track].data[i] );
     }
 }
+
+
+void sequencer_sag(sequencer* o, int track, int dest)
+{
+    int p = STEPS - 1;
+    switch(dest)
+    {
+    case 0:
+        
+        for(int i = STEPS - 1; i >= 0; --i)
+        {
+            if((o->automata[track].field>>i)&1)
+            {
+                swap(&o->o[track].data[i].degree, &o->o[track].data[p].degree);
+                --p;
+            }
+        }
+        break;
+
+    case 1:
+        for(int i = STEPS - 1; i >= 0; --i)
+        {
+            if((o->automata[track].field>>i)&1)
+            {
+                swap(&o->o[track].data[i].octave, &o->o[track].data[p].octave);
+                --p;
+            }
+        }
+        break;
+
+    case 2:
+        for(int i = STEPS - 1; i >= 0; --i)
+        {
+            if((o->automata[track].field>>i)&1)
+            {
+                swap(&o->o[track].data[i].degree, &o->o[track].data[p].degree);
+                swap(&o->o[track].data[i].octave, &o->o[track].data[p].octave);
+                --p;
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+

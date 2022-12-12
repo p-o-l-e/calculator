@@ -45,8 +45,10 @@ typedef struct
     int channel;        // Track channel
     int steps;          // Steps count
     int mode;           // Loop mode
-    bool trigger[STEPS];// NoteON bits
-    bool regenerate[3]; // [0] Beat [1] Notes [3] Set scale
+    int theta;          // Rotation
+    uint16_t trigger;   // NoteON bits
+    bool euclidean;     // Bresenham
+    bool regenerate[4]; // [0] Beat [1] Notes [3] Set scale
     bool reset;         // Recount timestamp
     bool freerun;       // Sync
     bool on;            // On-Off switch
@@ -62,7 +64,6 @@ typedef struct
     automata_t automata[TRACKS];
     track_t o[TRACKS];
     int  state;
-    bool recount;
 
 } sequencer;
 
@@ -85,5 +86,6 @@ void sequencer_run  (sequencer* o);
 void sequencer_stop (sequencer* o);
 void sequencer_pause(sequencer* o);
 void sequencer_rand (sequencer* o, int track);
+void sequencer_sag  (sequencer* o, int track, int dest); // Sheep and Goats
 void recount_all    (sequencer* o, int track);
 uint32_t get_timeout(sequencer* o, int track); // Time to the next step - NULL if timeline is clear

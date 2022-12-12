@@ -1,6 +1,5 @@
 #include "scale.h"
 
-
 void set_scale(scale_t* scale)
 {
     scale->data |= (1<<(11 - scale->root));
@@ -20,20 +19,24 @@ void note_from_degree(scale_t* scale, note* o)
 {
     o->chroma = scale->root + scale->degree[o->degree % scale->width] + 12 * o->octave;
 }
-//  rl 
-// 0011 1000 1000
-//   l   r
-// 0011 1000 1000
+
 void transpose_root(scale_t* scale)
 {
-    unsigned st = 0x800;
     unsigned l = 0;
     while (!(scale->data & (0x800 >> l)))
     {
         ++l; if (l > 11) break;
     }
-    if(scale->root < l) scale->data <<= (l - scale->root);
-    else if(scale->root > l) scale->data = rightrot12(scale->data, scale->root - l);
-    set_scale(scale);
-
+    if(scale->root < l) 
+    { 
+        scale->data <<= (l - scale->root); 
+        set_scale(scale); 
+    }
+    else if(scale->root > l) 
+    {
+        scale->data = rightrot12(scale->data, scale->root - l);
+        set_scale(scale);
+    }
+    
 }
+

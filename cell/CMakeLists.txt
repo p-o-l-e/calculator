@@ -8,6 +8,6 @@ target_sources(cell INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/midi_uart.c
     ${CMAKE_CURRENT_LIST_DIR}/automata.c
     ${CMAKE_CURRENT_LIST_DIR}/scale.c
-
+    ${CMAKE_CURRENT_LIST_DIR}/utility.c
 
 )

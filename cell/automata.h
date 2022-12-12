@@ -9,7 +9,7 @@
 
 typedef struct
 {
-    bool field[ROWS * COLS];
+    uint16_t field;
     int current;
     int rule[20];
     int pos[2];

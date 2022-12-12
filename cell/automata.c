@@ -6,9 +6,9 @@ void automata_evolve(automata_t* o)
     for(int i = 0; i < o->iterations; ++i)
     {
     int xy = o->pos[0] + COLS * o->pos[1];
-    if (o->field[xy] == true)
+    if ((o->field>>xy)&1)
     {
-        o->field[xy] = false;
+        o->field ^= 1<<xy;
         switch (o->current)
         {
             case 0b00:
@@ -33,7 +33,7 @@ void automata_evolve(automata_t* o)
     }
     else
     {
-        o->field[xy] = true;
+        o->field ^= 1<<xy;
         switch(o->current)
         {
             case 0b00:
@@ -65,7 +65,7 @@ void automata_evolve(automata_t* o)
 
 void automata_clr(automata_t* o)
 {
-    for(int i = 0; i < (ROWS*COLS); i++) o->field[i] = false;
+    o->field = 0;
 }
 
 
