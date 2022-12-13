@@ -30,7 +30,7 @@ void track_init(track_t* o)
     o->steps    = STEPS;
     o->revolutions = 0;
     o->trigger = 0;
-    o->freerun  = false;
+    o->freerun = false;
     o->euclidean = false;
     o->regenerate[0] = 0;
     o->regenerate[1] = 0;
@@ -97,7 +97,7 @@ void loop_pingpong(track_t* o)
 void loop_random(track_t* o)
 {
     static int r;
-    o->current  = rand_in_range(0, o->steps - 1);
+    o->current = rand_in_range(0, o->steps - 1);
     ++r;
     if(r>o->steps)
     {
@@ -218,4 +218,3 @@ void sequencer_sag(sequencer* o, int track, int dest)
         break;
     }
 }
-

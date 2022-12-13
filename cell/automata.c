@@ -3,8 +3,6 @@
 
 void automata_evolve(automata_t* o)
 {
-    for(int i = 0; i < o->iterations; ++i)
-    {
     int xy = o->pos[0] + COLS * o->pos[1];
     if ((o->field>>xy)&1)
     {
@@ -60,13 +58,8 @@ void automata_evolve(automata_t* o)
     else if(o->pos[0] < 0) o->pos[0] = COLS - (o->pos[0]&(COLS-1));
     if(o->pos[1] >= ROWS) o->pos[1] &= (ROWS-1);
     else if(o->pos[1] < 0) o->pos[1] = ROWS - (o->pos[1]&(ROWS-1));
-    }
 }
 
-void automata_clr(automata_t* o)
-{
-    o->field = 0;
-}
 
 
 void automata_init(automata_t* o)
@@ -95,8 +88,7 @@ void automata_init(automata_t* o)
     o->rule[18] =  1;
     o->rule[19] =  1;
     
-    o->iterations = 1;
-    automata_clr(o);
+    o->field = 0;
 }
 
 void automata_rand(automata_t* o)

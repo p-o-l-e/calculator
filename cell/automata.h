@@ -13,12 +13,10 @@ typedef struct
     int current;
     int rule[20];
     int pos[2];
-    int iterations;
 
 } automata_t;
 
 
 void automata_evolve(automata_t* o);
-void automata_clr(automata_t* o);
 void automata_init(automata_t* o);
 void automata_rand(automata_t* o);

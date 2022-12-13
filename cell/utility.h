@@ -59,4 +59,11 @@ inline unsigned lhca(unsigned x, unsigned rule, unsigned mask) // Linear Hybrid 
     return  t;
 }
 
+inline int xor16to4(uint16_t x)
+{
+    int r = x ^ (x >> 8);
+    r ^= (r >> 4);
+    return r & 0xF;
+}
+
 uint16_t bjorklund(int steps, int pulses);

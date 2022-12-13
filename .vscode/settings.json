@@ -40,9 +40,6 @@
         "quadrature_decoder.pio.h": "c",
         "fio.h": "c",
         "ratio": "c",
-        "midi.h": "c",
-        "algorithm": "c",
-        "deque": "c",
-        "vector": "c"
+        "midi.h": "c"
     }
 }

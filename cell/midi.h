@@ -59,5 +59,6 @@ typedef struct
     int  value;      // Duration (Quarter note = Beat)  (1/64 = b/16)
     int  velocity;   // MIDI Velocity 0-127
     int  offset;     // Time offset in ms
+    bool recount;
 
 } note;

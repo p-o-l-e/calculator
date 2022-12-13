@@ -27,31 +27,38 @@
 #include "interface.h"
 #include "suspend.h"
 #include "io.h"
+// #include "fs.h"
 
-
-inline static void swith_led(const int* track);
-inline static void scale_led(const int* track);
-inline static void arm(uint lag, absolute_time_t* t);
+static void switch_led(const int* track);
+static void scale_led(const int* track);
+static void arm(uint lag, absolute_time_t* t);
 static void init();
 static void __time_critical_func(send)(uint8_t id, const uint8_t status);
 int __time_critical_func(main)();
+
 static CD74HC595 sr;
 static ssd1306_t oled;
 static sequencer esq;
+static bool repaint = true;
 ////////////////////////////////////////////////////////////////////////////////////
 // Core 1 interrupt Handler ////////////////////////////////////////////////////////
 void core1_interrupt_handler() 
 {
     quadrature_decoder ncoder;
+    // lfs_t      fs;
+    // lfs_file_t init;
+    // load_file(&fs, &init, "/PRESETS/INIT", &esq);
+
     int ncoder_index;
     ncoder_index = quad_encoder_init(&ncoder);
     
     bool hold[16];
     bool hold_matrix[16];
     bool refresh = false;
-    bool repaint = true;
+    // bool repaint = true;
     bool tap_armed = false;
-    bool save = true;
+    //bool mount = false;
+    // bool save = true;
     int tap = 0;
     int prior = 0;    // Last encoder value
     int last = 0;     // Last action
@@ -78,7 +85,7 @@ void core1_interrupt_handler()
         int ccol = keypad_switch();
         // ENCODER /////////////////////////////////////////////////////////////////////////////////////////
         int current = get_count(&ncoder, ncoder_index);
-        if(current!=prior)
+        if(current != prior)
         {
             int f = -1;
             cap += ((prior - current)*300);
@@ -99,21 +106,21 @@ void core1_interrupt_handler()
                         if(esq.o[selected].data[f].value > 0xFF) esq.o[selected].data[f].value = 0xFF;
                         else if(esq.o[selected].data[f].value < 1) esq.o[selected].data[f].value = 1;
                         repaint = true;
-                    break;
+                        break;
 
                     case PAGE_VELO: 
                         esq.o[selected].data[f].velocity  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
                         if(esq.o[selected].data[f].velocity > 0x7F) esq.o[selected].data[f].velocity = 0x7F;
                         else if(esq.o[selected].data[f].velocity < 1) esq.o[selected].data[f].velocity = 1;
                         repaint = true;
-                    break;
+                        break;
 
                     case PAGE_FFST: 
                         esq.o[selected].data[f].offset  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
                         if(esq.o[selected].data[f].offset > 0x7F) esq.o[selected].data[f].offset = 0x7F;
                         else if(esq.o[selected].data[f].offset < -0x7F) esq.o[selected].data[f].offset = -0x7F;
                         repaint = true;
-                    break;
+                        break;
 
                     case PAGE_NOTE: 
                         if(abs(cap)>1000)
@@ -133,18 +140,18 @@ void core1_interrupt_handler()
                             }
                             cap = 0;
                             repaint = true;
-                            esq.o[selected].data[f].recount = true;
+                            note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);                        
                         }
-                    break;
-
+                        break;
                     default: 
-                    break;
+                        break;
                 }
-                note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);
             }
 
-            else if(page == PAGE_MAIN)
+            else {
+            switch(page)
             {
+            case PAGE_MAIN:
                 switch(line)
                 {
                     case 0: 
@@ -157,7 +164,7 @@ void core1_interrupt_handler()
                             cap = 0;
                             repaint = true;
                         }
-                    break;
+                        break;
 
                     case 1: 
                         if(abs(cap)>1000)
@@ -179,16 +186,14 @@ void core1_interrupt_handler()
                             cap = 0;
                             repaint = true;
                         }       
-                    break;
+                        break;
 
                     default:
-                    break;
+                        break;
                 }
-            }
+            break;
 
-
-            else if(page == PAGE_NOTE)
-            {
+            case PAGE_NOTE:
                 if(hold[BTNUP])
                 {
                     if(abs(cap)>1000)
@@ -219,10 +224,9 @@ void core1_interrupt_handler()
                         repaint = true;
                     }                
                 }
-            }
+            break;
 
-            else if(page == PAGE_VELO)
-            {
+            case PAGE_VELO:
                 if(hold[ALTGR])
                 {
                     if(abs(cap)>1000)
@@ -237,10 +241,9 @@ void core1_interrupt_handler()
                         repaint = true;
                     }                
                 }
-            }
+            break;
 
-            else if(page == PAGE_DRTN)
-            {
+            case PAGE_DRTN:
                 if(hold[ALTGR])
                 {
                     if(abs(cap)>1000)
@@ -255,10 +258,9 @@ void core1_interrupt_handler()
                         repaint = true;
                     }                
                 }
-            }
+            break;
 
-            else if(page == PAGE_DRFT)
-            {
+            case PAGE_DRFT:
                 switch(line)
                 {
                     case 0: 
@@ -269,7 +271,7 @@ void core1_interrupt_handler()
                             else if(esq.o[selected].drift[0] < 0) esq.o[selected].drift[0] = 0;
                             cap = 0;
                         }
-                    break;
+                        break;
 
                     case 1:
                         if(abs(cap)>1000)
@@ -279,7 +281,7 @@ void core1_interrupt_handler()
                             else if(esq.o[selected].drift[1] < 0) esq.o[selected].drift[1] = 0;
                             cap = 0;
                         }
-                    break;
+                        break;
 
                     case 2:
                         if(abs(cap)>1000)
@@ -289,7 +291,7 @@ void core1_interrupt_handler()
                             else if(esq.o[selected].drift[2] < 0) esq.o[selected].drift[2] = 0;
                             cap = 0;
                         }
-                    break;
+                        break;
 
                     case 3:
                         if(abs(cap)>1000)
@@ -299,12 +301,17 @@ void core1_interrupt_handler()
                             else if(esq.o[selected].drift[3] < 0) esq.o[selected].drift[3] = 0;
                             cap = 0;
                         }
-                    break;
+                        break;
        
                     default:
-                    break;
+                        break;
                 }
                 repaint = true;
+                break;
+
+            default: 
+                break;
+            }
             }
             prior = current;
         }
@@ -321,7 +328,6 @@ void core1_interrupt_handler()
             switch (page)
             {
             case PAGE_MAIN:
-                if(line > 4) line = 0;
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].bpm);
                 ssd1306_print_string(&oled, 4,  0, str, 0, 0);
@@ -338,7 +344,7 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
             
             case PAGE_DRTN:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
@@ -352,7 +358,7 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
 
             case PAGE_AUTO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
@@ -371,41 +377,41 @@ void core1_interrupt_handler()
                 }
                 for(int i = 0; i < 4; ++i)
                 {
-                    if(((esq.automata[selected].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
-                    else ssd1306_print_string(&oled, 4 + 32*i, 30, "X", 0, 0);
-                    if(((esq.automata[selected].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
-                    else ssd1306_print_string(&oled, 20 + 32*i, 30, "X", 0, 0);
+                    if(((esq.automata[selected].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32 * i, 30, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 4 + 32 * i, 30, "X", 0, 0);
+                    if(((esq.automata[selected].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32 * i, 30, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 20 + 32 * i, 30, "X", 0, 0);
                 }
                 for(int i = 0; i < 8; ++i)
                 {
                     if(esq.automata[selected].rule[12 + i] > 0)
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
+                    ssd1306_print_char(&oled, 4 + 16 * i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
                     else
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
+                    ssd1306_print_char(&oled, 4 + 16 * i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
                 }
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
+                str[selected * 2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
+
 
             case PAGE_VELO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
                 for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, i * 8 + 1, 10, 0x7F, 40, 6, true);
                 }
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
+                str[selected * 2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
 
             case PAGE_DRFT:
-                if(line > 3) line = 0;
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4, 0, "DRIFT", 0, 0);
                 sprintf(str, "%s VELOCITY : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].drift[0]);
@@ -417,11 +423,11 @@ void core1_interrupt_handler()
                 sprintf(str, "%s OCTAVE   : %d",(line==3)?lsel[1]:lsel[0], esq.o[selected].drift[3]);
                 ssd1306_print_string(&oled, 4, 40, str, 0, 0);
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
+                str[selected * 2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
 
             case PAGE_FFST:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
@@ -431,38 +437,36 @@ void core1_interrupt_handler()
                     ssd1306_progress_cv_bar(&oled, esq.o[selected].data[i].offset, i*8 + 1, 10, 0xFF, 40, 6);
                 }
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
+                str[selected * 2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
 
             case PAGE_NOTE:
-                char s[1];
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
                 ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
-                for(int i = 0; i < 12; ++i)
+                for(int i = 0; i < STEPS; ++i)
                 {
                     if(esq.o[selected].scale.data & (0x800 >> i))
                     ssd1306_print_char(&oled, xs[i], ys[i], 0x82, 0);
                     else
                     ssd1306_print_char(&oled, xs[i], ys[i], 0x81, 0);
-                    ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
-                    sprintf(s, "%d", esq.o[selected].data[i].octave);
-                    ssd1306_print_string(&oled,  6 + 10*i,  41, s, 0, true);
+                    ssd1306_print_string(&oled,  8*i,  24, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
+                    sprintf(str, "%d", esq.o[selected].data[i].octave);
+                    ssd1306_print_string(&oled,  8*i,  41, str, 0, true);
 
                 }
                 ssd1306_print_char(&oled, xs[esq.o[selected].scale.root], ys[esq.o[selected].scale.root], 0x83, 0);
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
+                str[selected * 2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
-
+                break;
+            
             case PAGE_PMUT:
-                if(line > 2) line = 0;
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4,   0, "PERMUTATION", 0, 0);
                 sprintf(str, "%sPATTERN  : %s",(line==0)?lsel[1]:lsel[0], esq.o[selected].regenerate[0]? "ON" : "OFF");
@@ -471,40 +475,43 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 20, str, 0, 0);
                 sprintf(str, "%sOCTAVE   : %s",(line==2)?lsel[1]:lsel[0], esq.o[selected].regenerate[2]? "ON" : "OFF");
                 ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                // sprintf(str, "%s         : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].regenerate[3]? "ON" : "OFF");
-                // ssd1306_print_string(&oled, 4, 40, str, 0, 0);
+                sprintf(str, "%s         : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].regenerate[3]? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
 
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
                 str[selected * 2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
             
             case PAGE_SAVE:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 0,   0, "SAVE", 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
 
             case PAGE_LOAD:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 0, 0, "LOAD", 0, 0);
                 repaint = false;
                 refresh = true;
-            break;
+                break;
+
+            case PAGE__LOG:
+                break;
 
             default:
-            break;
+                break;
             }
         }       
         if(hold[BTNUP])
         {
             if(page == PAGE_NOTE) scale_led(&selected);
-            else swith_led(&selected);
+            else switch_led(&selected);
         }
-        else swith_led(&selected);
+        else switch_led(&selected);
 
         if(_4067_get())
         {
@@ -535,14 +542,14 @@ void core1_interrupt_handler()
                                         esq.o[i].atom = esq.o[selected].atom;
                                     }
                                 }
-                            }                
+                            }                            
                             repaint = true;
                         }
                         hold[SHIFT] = true;
                     }
                     last = SHIFT;
                     tap = time_us_32();
-                break;
+                    break;
 
                 case ENCDR:
                     if(!hold[ENCDR])
@@ -563,18 +570,15 @@ void core1_interrupt_handler()
                 case BTNUP:
                     if(!hold[BTNUP]) 
                     { 
-                        if(hold[SHIFT]) esq.state = PLAY;
-                        else if(hold[ALTGR])
+                        if(hold[ALTGR]&&(page==PAGE_AUTO))
                         {
-                            if(page==PAGE_AUTO) 
-                            {
-                                esq.o[selected].regenerate[0] ^= 1;
-                                repaint = true;
-                            }
+                            esq.o[selected].regenerate[0] ^= 1;
+                            repaint = true;
                         }
                         else if((page == PAGE_MAIN)||(page == PAGE_DRFT)||(page == PAGE_SAVE)||(page == PAGE_LOAD)||(page == PAGE_PMUT))
                         {
-                            if(--line < 0) line = 4;
+                            --line;
+                            if(line < 0) line = 3;
                             repaint = true;
                         }
                         hold[BTNUP] = true;
@@ -585,31 +589,41 @@ void core1_interrupt_handler()
                 case BTNCT:
                     if(!hold[BTNCT])
                     {
-                        if(hold[SHIFT]) esq.state = PAUSE;
-                        else
+                        switch (page)
                         {
-                            switch (page)
+                        case PAGE_SAVE:
+                            break;
+                        
+                        case PAGE_LOAD:
+                            break;
+
+                        case PAGE_PMUT:
+                            esq.o[selected].regenerate[line] ^= 1;
+                            repaint = true;
+                            break;
+
+                        case PAGE_MAIN:
+                            if(line == 4) esq.o[selected].euclidean ^= 1;
+                            repaint = true;
+                            break;
+                        
+                        default:
+                            switch (esq.state)
                             {
-                            case PAGE_SAVE:
-                            break;
-                            
-                            case PAGE_LOAD:
-                            break;
-
-                            case PAGE_PMUT:
-                                esq.o[selected].regenerate[line] ^= 1;
-                                repaint = true;
-                            break;
-
-                            case PAGE_MAIN:
-                                if(line == 3) esq.o[selected].freerun ^= 1;
-                                else if(line == 4) esq.o[selected].euclidean ^= 1;
-                                repaint = true;
-                            break;
-                            
+                            case PLAY:
+                                if(hold[SHIFT]) esq.state = STOP;
+                                else esq.state = PAUSE;
+                                break;
+                            case PAUSE: 
+                                esq.state = PLAY;
+                                break;
+                            case STOP:
+                                esq.state = PLAY;
+                                break;
                             default:
-                            break;
+                                break;
                             }
+                            break;
                         }
                         hold[BTNCT] = true;
                     }
@@ -619,25 +633,25 @@ void core1_interrupt_handler()
                 case BTNDW:
                     if(!hold[BTNDW])
                     {
-                        if(hold[SHIFT]) esq.state = STOP;
-                        else if(hold[BTNUP]) page = PAGE_SAVE;
+                        if(hold[BTNUP]) page = PAGE_SAVE;
                         else if((page == PAGE_MAIN)||(page == PAGE_DRFT)||(page == PAGE_SAVE)||(page == PAGE_LOAD)||(page == PAGE_PMUT))
                         {
-                            // if(++line > 4) line = 0;
                             ++line;
+                            if(line > 3) line = 0;
                             repaint = true;
                         }
                         hold[BTNDW] = true;
                     }
                     last = BTNDW;
-                break;
+                    break;
 
                 case PGLFT: 
                     if(!hold[PGLFT]) 
                     { 
                         if(hold[ALTGR])
                         {
-                            if(--selected < 0) selected = TRACKS - 1;
+                            --selected;
+                            if(selected < 0) selected = TRACKS - 1;
                         }
                         else
                         {
@@ -647,14 +661,15 @@ void core1_interrupt_handler()
                         hold[PGLFT] = true;
                     } 
                     last = PGLFT;
-                break;
+                    break;
 
                 case PGRGT: 
                     if(!hold[PGRGT]) 
-                    { 
+                    {
                         if(hold[ALTGR])
                         {
-                            if(++selected >= TRACKS) selected = 0;
+                            ++selected;
+                            if(selected >= TRACKS) selected = 0;
                         }
                         else
                         {
@@ -664,7 +679,7 @@ void core1_interrupt_handler()
                         hold[PGRGT] = true;
                     } 
                     last = PGRGT;
-                break;
+                    break;
 
                 case MROW0: 
                     if(!hold_matrix[ccol]) 
@@ -693,7 +708,7 @@ void core1_interrupt_handler()
                         hold_matrix[ccol] = true; 
                     } 
                     last = MROW0;
-                break;
+                    break;
 
                 case MROW1: 
                     if(!hold_matrix[ccol + 4]) 
@@ -722,7 +737,7 @@ void core1_interrupt_handler()
                         hold_matrix[ccol + 4] = true; 
                     } 
                     last = MROW1;
-                break;
+                    break;
 
                 case MROW2: 
                     if(!hold_matrix[ccol + 8]) 
@@ -751,7 +766,7 @@ void core1_interrupt_handler()
                         hold_matrix[ccol + 8] = true; 
                     } 
                     last = MROW2;
-                break;
+                    break;
 
                 case MROW3: 
                     if(!hold_matrix[ccol + 12]) 
@@ -760,10 +775,10 @@ void core1_interrupt_handler()
                         hold_matrix[ccol + 12] = true; 
                     } 
                     last = MROW3;
-                break;
+                    break;
 
                 default: 
-                break;
+                    break;
             }
             if(page >= PAGES) page = 0;
             else if(page < 0) page = PAGES - 1;
@@ -773,7 +788,7 @@ void core1_interrupt_handler()
             if(sreg < 4) hold_matrix[sreg * 4 + ccol] = false;
             else if(sreg == SHIFT) 
             { 
-                if(last == SHIFT) tap_armed = true;// tap = time_us_32(); 
+                if(last == SHIFT) tap_armed = true;
                 hold[SHIFT] = false;
             }
             else hold[sreg] = false;
@@ -854,11 +869,6 @@ int main()
         case PLAY:
         for(int i = 0; i < TRACKS; ++i)
         {
-            if(esq.o[i].data[esq.o[i].current].recount) 
-            {
-                note_from_degree(&esq.o[i].scale, &esq.o[i].data[esq.o->current]);
-                esq.o[i].data[esq.o[i].current].recount = false;
-            }
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // NOTE ON Timings ////////////////////////////////////////////////////////////////////////////////////////////////////////////
             if(time_reached(tts[i]))
@@ -885,8 +895,8 @@ int main()
                     gate[i] = false;
                 }
             }
-        }
-        break;
+            
+            break;
 
         case PAUSE:
             for(int i = 0; i < TRACKS; ++i)
@@ -900,7 +910,7 @@ int main()
                     }
                 }
             }
-        break;
+            break;
 
         case STOP:
             for(int i = 0; i < TRACKS; ++i)
@@ -915,59 +925,50 @@ int main()
                 }
                 esq.o[i].current = 0;
             }
-        break;
+            break;
 
         default:
             break;
         }
+        }
         multicore_fifo_push_blocking(0);
     }
-  
     return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Send MIDI message //////////////////////////////////////////////////////////////////
-inline static void send(uint8_t id, const uint8_t status) 
+void send(uint8_t id, const uint8_t status) 
 {
     switch (status)
     {
-    case 0x80: // Note ON
-        uint8_t off[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, 0 };
-        _send_note(off);
-        tud_midi_stream_write(cable_num, off, 3);
-        break;
+        case 0x80: // Note OFF
+            uint8_t off[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, 0 };
+            _send_note(off);
+            tud_midi_stream_write(cable_num, off, 3);
+            break;
 
-    case 0x90: // Note OFF
-        int velocity = esq.o[id].data[esq.o[id].current].velocity;
-        if(esq.o[id].drift[0]) 
-        {
-            velocity = esq.o[id].data[esq.o[id].current].velocity + rand_in_range(-esq.o[id].drift[0], esq.o[id].drift[0]);
-            if(velocity > 0x7F) velocity = 0x7F;
-            else if(velocity < 1) velocity = 1;
-        }
-        uint8_t on[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, velocity };
-        _send_note(on);
-        tud_midi_stream_write(cable_num, on, 3);
-        break;
+        case 0x90: // Note ON
+            int velocity = esq.o[id].data[esq.o[id].current].velocity;
+            if(esq.o[id].drift[0]) 
+            {
+                velocity = esq.o[id].data[esq.o[id].current].velocity + rand_in_range(-esq.o[id].drift[0], esq.o[id].drift[0]);
+                if(velocity > 0x7F) velocity = 0x7F;
+                else if(velocity < 1) velocity = 1;
+            }
+            uint8_t on[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, velocity };
+            _send_note(on);
+            tud_midi_stream_write(cable_num, on, 3);
+            break;
 
-    default:
-        break;
+        default:
+            break;
     }
-    // if(page == PAGE_LOG_)
-    // {
-    //     char str[16];
-    //     if(status == 0x80)
-    //     sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-    //     if(status == 0x90)
-    //     sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-    //     ssd1306_log(&oled, str, 0, 0);
-    // }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Prepare to play routine ///////////////////////////////////////////////////////////////
-inline static void arm(uint lag, absolute_time_t* t) 
+static void arm(uint lag, absolute_time_t* t) 
 {
     int f = esq.o[0].data[esq.o[0].current].offset;
     for(int i = 1; i < TRACKS; ++i)
@@ -985,7 +986,7 @@ inline static void arm(uint lag, absolute_time_t* t)
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Loop led run //////////////////////////////////////////////////////////////////////
-inline static void swith_led(const int* track)
+static void switch_led(const int* track)
 {
     static int led;
     _74HC595_set_all_low(&sr);
@@ -1000,7 +1001,7 @@ inline static void swith_led(const int* track)
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Scale representation //////////////////////////////////////////////////////////////
-inline static void scale_led(const int* track)
+static void scale_led(const int* track)
 {
     static int led;
     _74HC595_set_all_low(&sr);
@@ -1009,7 +1010,7 @@ inline static void scale_led(const int* track)
     {
         led = 0;
         _74HC595_set_all_low(&sr);
-        pset(&sr, esq.o[*track].scale.root &3, esq.o[*track].scale.root>>2, 4);
+        pset(&sr, esq.o[*track].scale.root&3, esq.o[*track].scale.root>>2, 4);
     }
 }
 
@@ -1046,5 +1047,5 @@ static void init()
     srand(time_us_32());         // Random seed
     sequencer_init(&esq, 120);
     for(int i = 0; i < TRACKS; ++i) sequencer_rand(&esq, i);
-    // multicore_fifo_push_blocking(0);
+    multicore_fifo_push_blocking(0);
 }

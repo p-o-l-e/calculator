@@ -5,11 +5,11 @@
 - 4 modes (forward, backward, ping-pong, random)
 - Adjustable velocity, time offset and duration for each note
 - Langton's ant like cellular automata with user-defined rules
+- Beat auto align (aka Euclidean rhythm)
 - Scale/Root auto align
 - Tap tempo
 - Sync/freerun for each track
 - Adjustable velocity & timing drift
-- MIDI in FX mode   // TODO
-- external bpm sync // TODO
+
 
 <a href="./hardware/front.png"><img width=300 src="./hardware/front.png"/></a>

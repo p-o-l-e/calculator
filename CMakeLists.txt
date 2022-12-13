@@ -1,26 +1,32 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(FAMILY rp2040)
-set(BOARD pico_sdk)
-set(PICO_SDK_PATH /home/alayalava/git/pico/pico-sdk)
-include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
-include(${PICO_SDK_PATH}/lib/tinyusb/hw/bsp/family_support.cmake)
-include(${PICO_SDK_PATH}/lib/tinyusb/hw/bsp/${FAMILY}/family.cmake)
-
-project(calculator C CXX ASM)
-family_get_project_name(calculator ${CMAKE_CURRENT_LIST_DIR})
-
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-#pico_sdk_init()
-family_initialize_project(calculator ${CMAKE_CURRENT_LIST_DIR}/family)
+set(FAMILY rp2040)
+set(BOARD pico_sdk)
+set(PICO_SDK_PATH /home/alayalava/git/pico/pico-sdk)
+set(PICO_BOARD pico CACHE STRING "Board type")
+
+include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+
+#include(${PICO_SDK_PATH}/lib/tinyusb/hw/bsp/family_support.cmake)
+#include(${PICO_SDK_PATH}/lib/tinyusb/hw/bsp/${FAMILY}/family.cmake)
+
+project(calculator C CXX ASM)
+#family_get_project_name(calculator ${CMAKE_CURRENT_LIST_DIR})
+
+
+
+pico_sdk_init()
+#family_initialize_project(calculator ${CMAKE_CURRENT_LIST_DIR}/family)
 
 add_executable(calculator
 	calculator.c
 	usb_descriptors.c
 )
 
+pico_set_binary_type(calculator copy_to_ram)
 pico_enable_stdio_usb(calculator 0)
 pico_enable_stdio_uart(calculator 1)
 
@@ -67,7 +73,7 @@ target_compile_definitions(calculator PRIVATE
 set(PICO_DEFAULT_FLOAT_IMPL pico_float_pico)
 
 target_compile_options(calculator PRIVATE
-
+	#-Wall
     -Ofast
 	-march=armv6-m
 	-mcpu=cortex-m0plus
@@ -79,5 +85,4 @@ target_compile_options(calculator PRIVATE
 )
 
 pico_set_double_implementation(calculator none)
-pico_set_binary_type(calculator copy_to_ram)
 pico_add_extra_outputs(calculator)
