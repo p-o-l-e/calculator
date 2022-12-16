@@ -1,7 +1,7 @@
 #include "automata.h"
 #include "utility.h"
 
-void automata_evolve(automata_t* o)
+void automata_evolve(automata_t* restrict o)
 {
     int xy = o->pos[0] + COLS * o->pos[1];
     if ((o->field>>xy)&1)
@@ -62,7 +62,7 @@ void automata_evolve(automata_t* o)
 
 
 
-void automata_init(automata_t* o)
+void automata_init(automata_t* restrict o)
 {
     o->rule[ 0] = 0b01;
     o->rule[ 1] = 0b10;
@@ -91,7 +91,7 @@ void automata_init(automata_t* o)
     o->field = 0;
 }
 
-void automata_rand(automata_t* o)
+void automata_rand(automata_t* restrict o)
 {
     o->pos[0]   = rand_in_range(0, COLS-1);
     o->pos[1]   = rand_in_range(0, ROWS-1);

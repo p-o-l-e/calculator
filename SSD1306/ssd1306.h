@@ -70,89 +70,89 @@ typedef enum
 typedef struct 
 {
     uint16_t addr;
-    i2c_inst_t *i2c;
+    i2c_inst_t* restrict i2c;
     uint8_t width;
     uint8_t height;
-    uint8_t* buffer;
+    uint8_t* restrict buffer;
 
 } ssd1306_t;
 
-uint32_t ssd1306_init(ssd1306_t *ssd, uint16_t addr, i2c_inst_t *i2c, ssd1306_color_t color);
+uint32_t ssd1306_init(ssd1306_t* restrict ssd, uint16_t addr, i2c_inst_t* restrict i2c, ssd1306_color_t color);
 
-static inline void ssd1306_free(ssd1306_t *ssd) 
+static inline void ssd1306_free(ssd1306_t* restrict ssd) 
 {
     free(ssd->buffer);
 }
 
-static inline void ssd1306_send_command(ssd1306_t *ssd, uint8_t command) 
+static inline void ssd1306_send_command(ssd1306_t* restrict ssd, uint8_t command) 
 {
     const uint8_t message[] = {SSD1306_CONTROL_COMMAND, command};
     i2c_write_blocking(ssd->i2c, ssd->addr, message, 2, false);
 }
 
-void ssd1306_send_command_list(ssd1306_t *ssd, const uint8_t *commands, size_t command_size);
-void ssd1306_send_data(ssd1306_t *ssd, const uint8_t *data, size_t data_size);
-void ssd1306_set_pixels(ssd1306_t *ssd);
+void ssd1306_send_command_list(ssd1306_t* restrict ssd, const uint8_t* restrict commands, size_t command_size);
+void ssd1306_send_data(ssd1306_t* restrict ssd, const uint8_t* restrict data, size_t data_size);
+void ssd1306_set_pixels(ssd1306_t* restrict ssd);
 
-static inline void ssd1306_set_display_power(ssd1306_t *ssd, bool power) 
+static inline void ssd1306_set_display_power(ssd1306_t* restrict ssd, bool power) 
 {
     ssd1306_send_command(ssd, SSD1306_DISPLAYOFF | (uint8_t)power);
 }
 
-static inline void ssd1306_set_pause_display(ssd1306_t *ssd, bool pause) 
+static inline void ssd1306_set_pause_display(ssd1306_t* restrict ssd, bool pause) 
 {
     ssd1306_send_command(ssd, SSD1306_DISPLAYPAUSEOFF | (uint8_t)pause);
 }
 
-static inline void ssd1306_set_invert_colors(ssd1306_t *ssd, bool invert) 
+static inline void ssd1306_set_invert_colors(ssd1306_t* restrict ssd, bool invert) 
 {
     ssd1306_send_command(ssd, SSD1306_NORMALDISPLAY | (uint8_t)invert);
 }
 
-static inline void ssd1306_set_memory_mode(ssd1306_t *ssd, ssd1306_memory_mode_t mode) 
+static inline void ssd1306_set_memory_mode(ssd1306_t* restrict ssd, ssd1306_memory_mode_t mode) 
 {
     const uint8_t message[] = {SSD1306_MEMORYMODE, (uint8_t)mode};
     ssd1306_send_command_list(ssd, message, 2);
 }
 
-static inline void ssd1306_set_vertical_flip(ssd1306_t *ssd, bool flipped) 
+static inline void ssd1306_set_vertical_flip(ssd1306_t* restrict ssd, bool flipped) 
 {
     ssd1306_send_command(ssd, SSD1306_COMSCANNORMAL | ((uint8_t)flipped) * 0x8);
 }
 
-static inline void ssd1306_set_horizontal_flip(ssd1306_t *ssd, bool flipped) 
+static inline void ssd1306_set_horizontal_flip(ssd1306_t* restrict ssd, bool flipped) 
 {
     ssd1306_send_command(ssd, SSD1306_SEGNORMAL | (uint8_t)flipped);
 }
 
-static inline void ssd1306_set_full_rotation(ssd1306_t *ssd, bool rotated) 
+static inline void ssd1306_set_full_rotation(ssd1306_t* restrict ssd, bool rotated) 
 {
     ssd1306_set_vertical_flip(ssd, rotated);
     ssd1306_set_horizontal_flip(ssd, rotated);
 }
 
-static inline void ssd1306_buffer_set_pixels_direct(ssd1306_t *ssd, const uint8_t *pixels) 
+static inline void ssd1306_buffer_set_pixels_direct(ssd1306_t* restrict ssd, const uint8_t *pixels) 
 {
     memcpy(ssd->buffer, pixels, ssd->width * ssd->height / 8);
 }
 
-static inline void ssd1306_buffer_fill_pixels(ssd1306_t *ssd, ssd1306_color_t color) 
+static inline void ssd1306_buffer_fill_pixels(ssd1306_t* restrict ssd, ssd1306_color_t color) 
 {
     memset(ssd->buffer, (color == WHITE) ? 0xff : 0x00, ssd->width * ssd->height / 8);
 }
 
-static inline void ssd1306_pset(ssd1306_t *p, uint32_t x, uint32_t y)
+static inline void ssd1306_pset(ssd1306_t* restrict p, uint32_t x, uint32_t y)
 {
     if(x>=p->width || y>=p->height) return;
     p->buffer[x + p->width * (y >> 3)] |= 0x1 << (y & 0x07);
 }
 
-void ssd1306_print_char(ssd1306_t* p, uint8_t x, uint8_t y, const uint8_t s, bool invert);
-void ssd1306_print_string(ssd1306_t* p, uint8_t x, uint8_t y, const char* s, bool invert, bool vertical);
-void ssd1306_log(ssd1306_t* p, const char* s, uint16_t ms, bool clr);
-void ssd1306_line(ssd1306_t* oled, uint8_t x, uint8_t y, uint8_t length, bool vertical);
-void ssd1306_progress_bar(ssd1306_t* oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical);
-void ssd1306_glyph(ssd1306_t* oled, const bool* data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
-void ssd1306_progress_cv_bar(ssd1306_t* oled, int8_t value, uint8_t x, uint8_t y, uint8_t max, uint8_t length, uint8_t width);
+void ssd1306_print_char(ssd1306_t* restrict p, uint8_t x, uint8_t y, const uint8_t s, bool invert);
+void ssd1306_print_string(ssd1306_t* restrict p, uint8_t x, uint8_t y, const char* restrict s, bool invert, bool vertical);
+void ssd1306_log(ssd1306_t* restrict p, const char* restrict s, uint16_t ms, bool clr);
+void ssd1306_line(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t length, bool vertical);
+void ssd1306_progress_bar(ssd1306_t* restrict oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical);
+void ssd1306_glyph(ssd1306_t* restrict oled, const bool* restrict data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
+void ssd1306_progress_cv_bar(ssd1306_t* restrict oled, int8_t value, uint8_t x, uint8_t y, uint8_t max, uint8_t length, uint8_t width);
 
 #endif

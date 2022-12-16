@@ -42,16 +42,13 @@ typedef struct
     int atom;           // Minimal note length
     int bpm;            // Beats per minute
     int current;        // Current step
-    int drift[4];       // Drift amount of: [0] Velocity [1] Offset
     int channel;        // Track channel
     int steps;          // Steps count
     int mode;           // Loop mode
-    // int theta;          // Rotation
     bool euclidean;     // Bresenham
-    bool regenerate[4]; // [0] Beat [1] Notes [3] Set scale
+    bool regenerate[4]; // [0]Beat [1]Note [2]Octave [3]Velocity
     bool reset;         // Recount timestamp
     bool freerun;       // Sync
-    // bool on;            // On-Off switch
 
 } track_t;
 
@@ -69,23 +66,33 @@ typedef struct
 
 ///////////////////////////////////////////////////////////////
 // Track routines /////////////////////////////////////////////
-void track_init     (track_t* o);
-void loop_forward   (track_t* o);
-void loop_backward  (track_t* o);
-void loop_pingpong  (track_t* o);
-void loop_random    (track_t* o);
-void insert_bits    (track_t* o, uint16_t bits);
-note get_note       (track_t* o);
-extern void (*loop_sequence[])(track_t*);
+void track_init     (track_t* restrict o);
+void loop_forward   (track_t* restrict o);
+void loop_backward  (track_t* restrict o);
+void loop_pingpong  (track_t* restrict o);
+void loop_random    (track_t* restrict o);
+void insert_bits    (track_t* restrict o, uint16_t bits);
+note get_note       (track_t* restrict o);
+extern void (*loop_sequence[])(track_t* restrict);
 
 ///////////////////////////////////////////////////////////////
 // Sequencer routines /////////////////////////////////////////
-void reset_timestamp(sequencer* o, int track, int bpm);
-void sequencer_init (sequencer* o, int bpm);
-void sequencer_run  (sequencer* o);
-void sequencer_stop (sequencer* o);
-void sequencer_pause(sequencer* o);
-void sequencer_rand (sequencer* o, int track);
-void sequencer_sag  (sequencer* o, int track, int dest); // Sheep and Goats
-void recount_all    (sequencer* o, int track);
-uint32_t get_timeout(sequencer* o, int track); // Time to the next step - NULL if timeline is clear
+void reset_timestamp(sequencer* restrict o, int track, int bpm);
+void sequencer_init (sequencer* restrict o, int bpm);
+void sequencer_run  (sequencer* restrict o);
+void sequencer_stop (sequencer* restrict o);
+void sequencer_pause(sequencer* restrict o);
+void sequencer_rand (sequencer* restrict o, int track);
+void recount_all    (sequencer* restrict o, int track);
+uint32_t get_timeout(sequencer* restrict o, int track); // Time to the next step - NULL if timeline is clear
+void sag_degree(sequencer* restrict o, int track, uint16_t data);   // Sheep and Goats - degree
+void siv_degree(sequencer* restrict o, int track, uint16_t data);   // Sieve shift - degree
+void prm_degree(sequencer* restrict o, int track, uint16_t data);   // Sieve shift - degree
+void sag_octave(sequencer* restrict o, int track, uint16_t data);   // Sheep and Goats - octave
+void sag_velocity(sequencer* restrict o, int track, uint16_t data); // Sheep and Goats - octave
+void rlf_velocity(sequencer* restrict o, int track, uint16_t data); // Sheep and Goats - octave
+void xlr_velocity(sequencer* restrict o, int track, uint16_t data);
+void rrl_velocity(sequencer* restrict o, int track, uint16_t data);
+void irl_velocity(sequencer* restrict o, int track, uint16_t data);
+
+extern void (*mutate[])(sequencer* restrict, int, uint16_t); 

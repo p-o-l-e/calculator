@@ -8,4 +8,4 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-void _send_note(uint8_t* data);
+void _send_note(uint8_t* restrict data);

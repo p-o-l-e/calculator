@@ -1,6 +1,6 @@
 #include "scale.h"
 
-void set_scale(scale_t* scale)
+void set_scale(scale_t* restrict scale)
 {
     scale->data |= (1<<(11 - scale->root));
     unsigned s = 0;
@@ -15,12 +15,12 @@ void set_scale(scale_t* scale)
     scale->width = s;
 }
 
-void note_from_degree(scale_t* scale, note* o)
+void note_from_degree(scale_t* restrict scale, note* restrict o)
 {
     o->chroma = scale->root + scale->degree[o->degree % scale->width] + 12 * o->octave;
 }
 
-void transpose_root(scale_t* scale)
+void transpose_root(scale_t* restrict scale)
 {
     unsigned l = 0;
     while (!(scale->data & (0x800 >> l)))

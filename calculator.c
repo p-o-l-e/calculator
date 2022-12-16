@@ -28,10 +28,9 @@
 #include "suspend.h"
 #include "io.h"
 
-
-inline static void swith_led(const int* track);
-inline static void scale_led(const int* track);
-inline static void arm(uint lag, absolute_time_t* t);
+inline static void swith_led(const int* restrict track);
+inline static void scale_led(const int* restrict track);
+inline static void arm(uint lag, absolute_time_t* restrict t);
 static void init();
 static void __time_critical_func(send)(uint8_t id, const uint8_t status);
 int __time_critical_func(main)();
@@ -46,8 +45,8 @@ void core1_interrupt_handler()
     int ncoder_index;
     ncoder_index = quad_encoder_init(&ncoder);
     
-    bool hold[16];
-    bool hold_matrix[16];
+    bool hold[16]; memset(hold, 0, sizeof(hold));
+    bool hold_matrix[16]; memset(hold_matrix, 0, sizeof(hold_matrix));
     bool refresh = false;
     bool repaint = true;
     bool tap_armed = false;
@@ -55,26 +54,27 @@ void core1_interrupt_handler()
     int tap = 0;
     int prior = 0;    // Last encoder value
     int last = 0;     // Last action
-    int sreg = 4;     // Shift Register iterator
+    int imux = 4;     // Multiplexer iterator
     int line = 0;     // Selected display line
     int selected = 0; // Displayed track
     int page = 0;     // Current page
-    int rv[TRACKS];   // Revolution counters
+    int crv[TRACKS];  // Revolution counters
+    memset(crv, 0, sizeof(crv));
 
     int cap = 0;
-    const char* lsel[] = {" ", "\x80"};
-    const char* mode[] = {"FWD", "BWD", "PNG", "RND"};
-    const int xs[12] = { 56, 60, 66, 70, 76, 86, 90, 96, 100, 106, 110, 116};
-    const int ys[12] = { 10,  0, 10,  0, 10, 10,  0, 10,   0,  10,   0,  10};
-    const char* chromatic[]    = {" C","#C"," D","#D"," E"," F","#F"," G","#G"," A","#A"," B"};
-    const char* chromatic_lr[] = {"C ","C#","D ","D#","E ","F ","F#","G ","G#","A ","A#","B "};
+    const char* restrict lsel[] = { " ", "\x80" };
+    const char* restrict mode[] = { "FWD", "BWD", "PNG", "RND" };
+    const int xkeys[12] = { 56, 60, 66, 70, 76, 86, 90, 96, 100, 106, 110, 116};
+    const int ykeys[12] = { 10,  0, 10,  0, 10, 10,  0, 10,   0,  10,   0,  10};
+    const char* restrict chromatic[]    = { " C","#C"," D","#D"," E"," F","#F"," G","#G"," A","#A"," B" };
+    const char* restrict chromatic_lr[] = { "C ","C#","D ","D#","E ","F ","F#","G ","G#","A ","A#","B " };
 
 
     while (multicore_fifo_rvalid())
     {
         uint16_t raw = multicore_fifo_pop_blocking();  
-        if(++sreg >= N4067) sreg = 0;
-        _4067_switch(sreg, 0);
+        if(++imux >= N4067) imux = 0;
+        _4067_switch(imux, 0);
         int ccol = keypad_switch();
         // ENCODER /////////////////////////////////////////////////////////////////////////////////////////
         int current = get_count(&ncoder, ncoder_index);
@@ -90,6 +90,8 @@ void core1_interrupt_handler()
                     break;
                 }
             }
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Matrix button pressed ///////////////////////////////////////////////////////////////////////////////////
             if(f >= 0) 
             {
                 switch (page)
@@ -109,9 +111,9 @@ void core1_interrupt_handler()
                     break;
 
                     case PAGE_FFST: 
-                        esq.o[selected].data[f].offset  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-                        if(esq.o[selected].data[f].offset > 0x7F) esq.o[selected].data[f].offset = 0x7F;
-                        else if(esq.o[selected].data[f].offset < -0x7F) esq.o[selected].data[f].offset = -0x7F;
+                        esq.o[selected].data[f].offset  += ((prior > current) ? -1 - 2*hold[ENCDR] : 1 + 2*hold[ENCDR]);
+                        if(esq.o[selected].data[f].offset > 0x20) esq.o[selected].data[f].offset = 0x20;
+                        else if(esq.o[selected].data[f].offset < 0) esq.o[selected].data[f].offset = 0;
                         repaint = true;
                     break;
 
@@ -134,23 +136,25 @@ void core1_interrupt_handler()
                             cap = 0;
                             repaint = true;
                             esq.o[selected].data[f].recount = true;
+                            note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);
                         }
                     break;
 
                     default: 
                     break;
                 }
-                note_from_degree(&esq.o[selected].scale, &esq.o[selected].data[f]);
             }
-
-            else if(page == PAGE_MAIN)
+            else // Matrix buttons unpressed
             {
+            switch(page)
+            {
+            case PAGE_MAIN:
                 switch(line)
                 {
                     case 0: 
                         if(abs(cap)>1000)
                         {
-                            int bpm = esq.o[selected].bpm - ((cap > 0)? 1 + 4*hold[ENCDR]:-1 - 4*hold[ENCDR]);
+                            int bpm = esq.o[selected].bpm - ((cap > 0)? 1 + 4*hold[ENCDR]: -1 - 4*hold[ENCDR]);
                             if(bpm > 999) bpm = 999;
                             else if(bpm < 1) bpm = 1;
                             reset_timestamp(&esq, selected, bpm);
@@ -168,7 +172,7 @@ void core1_interrupt_handler()
                             cap = 0;
                             repaint = true;
                         }
-                        break;
+                    break;
 
                     case 2:
                         if(abs(cap)>1000)
@@ -184,11 +188,10 @@ void core1_interrupt_handler()
                     default:
                     break;
                 }
-            }
+            break;
 
 
-            else if(page == PAGE_NOTE)
-            {
+            case PAGE_NOTE:
                 if(hold[BTNUP])
                 {
                     if(abs(cap)>1000)
@@ -219,10 +222,9 @@ void core1_interrupt_handler()
                         repaint = true;
                     }                
                 }
-            }
+            break;
 
-            else if(page == PAGE_VELO)
-            {
+            case PAGE_VELO:
                 if(hold[ALTGR])
                 {
                     if(abs(cap)>1000)
@@ -237,10 +239,9 @@ void core1_interrupt_handler()
                         repaint = true;
                     }                
                 }
-            }
+            break;
 
-            else if(page == PAGE_DRTN)
-            {
+            case PAGE_DRTN:
                 if(hold[ALTGR])
                 {
                     if(abs(cap)>1000)
@@ -255,250 +256,12 @@ void core1_interrupt_handler()
                         repaint = true;
                     }                
                 }
-            }
-
-            else if(page == PAGE_DRFT)
-            {
-                switch(line)
-                {
-                    case 0: 
-                        if(abs(cap)>1000)
-                        {
-                            esq.o[selected].drift[0] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected].drift[0] > 0x40) esq.o[selected].drift[0] = 0x40;
-                            else if(esq.o[selected].drift[0] < 0) esq.o[selected].drift[0] = 0;
-                            cap = 0;
-                        }
-                    break;
-
-                    case 1:
-                        if(abs(cap)>1000)
-                        {
-                            esq.o[selected].drift[1] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected].drift[1] > 0x40) esq.o[selected].drift[1] = 0x40;
-                            else if(esq.o[selected].drift[1] < 0) esq.o[selected].drift[1] = 0;
-                            cap = 0;
-                        }
-                    break;
-
-                    case 2:
-                        if(abs(cap)>1000)
-                        {
-                            esq.o[selected].drift[2] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected].drift[2] > 12) esq.o[selected].drift[2] = 12;
-                            else if(esq.o[selected].drift[2] < 0) esq.o[selected].drift[2] = 0;
-                            cap = 0;
-                        }
-                    break;
-
-                    case 3:
-                        if(abs(cap)>1000)
-                        {
-                            esq.o[selected].drift[3] -= ((cap > 0)? 1:-1);
-                            if(esq.o[selected].drift[3] > 8) esq.o[selected].drift[3] = 8;
-                            else if(esq.o[selected].drift[3] < 0) esq.o[selected].drift[3] = 0;
-                            cap = 0;
-                        }
-                    break;
-       
-                    default:
-                    break;
-                }
-                repaint = true;
-            }
+            break;
+            }}
             prior = current;
         }
-
-        if(refresh)
-        {
-            ssd1306_set_pixels(&oled);
-            refresh = false;
-        }
-        // REPAINT ////////////////////////////////////////////////////////////////////////////////
-        else if(repaint)
-        {
-            char str[16];
-            switch (page)
-            {
-            case PAGE_MAIN:
-                if(line > 4) line = 0;
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].bpm);
-                ssd1306_print_string(&oled, 4,  0, str, 0, 0);
-                sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected].steps);
-                ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                sprintf(str, "%s MODE    : %s",(line==2)?lsel[1]:lsel[0], mode[esq.o[selected].mode]);
-                ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "%s FREERUN : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].freerun ? "ON" : "OFF");
-                ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                sprintf(str, "%s ALIGN   : %s",(line==4)?lsel[1]:lsel[0], esq.o[selected].euclidean ? "ON" : "OFF");
-                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-            
-            case PAGE_DRTN:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
-                for(int i = 0; i < 16; ++i)
-                {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].value, i*8 + 1, 10, 0xFF, 40, 6, true);
-                }
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_AUTO:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                sprintf(str, "AUTOMATA : %s", esq.o[selected].regenerate[0]? "ON":"OFF");
-                ssd1306_print_string(&oled, 4, 0, str, 0, 0);
-                for(int i = 0; i < 8; ++i)
-                {
-                    switch (esq.automata[selected].rule[i])
-                    {
-                        case 0: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8C, 0); break;
-                        case 1: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8D, 0); break;
-                        case 2: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8E, 0); break;
-                        case 3: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8F, 0); break;
-                        default: break;
-                    }
-                }
-                for(int i = 0; i < 4; ++i)
-                {
-                    if(((esq.automata[selected].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
-                    else ssd1306_print_string(&oled, 4 + 32*i, 30, "X", 0, 0);
-                    if(((esq.automata[selected].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
-                    else ssd1306_print_string(&oled, 20 + 32*i, 30, "X", 0, 0);
-                }
-                for(int i = 0; i < 8; ++i)
-                {
-                    if(esq.automata[selected].rule[12 + i] > 0)
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
-                    else
-                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
-                }
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_VELO:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
-                for(int i = 0; i < 16; ++i)
-                {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
-                }
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_DRFT:
-                if(line > 3) line = 0;
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 4, 0, "DRIFT", 0, 0);
-                sprintf(str, "%s VELOCITY : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].drift[0]);
-                ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                sprintf(str, "%s OFFSET   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected].drift[1]);
-                ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "%s DEGREE   : %d",(line==2)?lsel[1]:lsel[0], esq.o[selected].drift[2]);
-                ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                sprintf(str, "%s OCTAVE   : %d",(line==3)?lsel[1]:lsel[0], esq.o[selected].drift[3]);
-                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_FFST:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 4, 0, "OFFSET", 0, 0);
-                for(int i = 0; i < 16; ++i)
-                {
-                    ssd1306_progress_cv_bar(&oled, esq.o[selected].data[i].offset, i*8 + 1, 10, 0xFF, 40, 6);
-                }
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_NOTE:
-                char s[1];
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
-                ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
-                for(int i = 0; i < 12; ++i)
-                {
-                    if(esq.o[selected].scale.data & (0x800 >> i))
-                    ssd1306_print_char(&oled, xs[i], ys[i], 0x82, 0);
-                    else
-                    ssd1306_print_char(&oled, xs[i], ys[i], 0x81, 0);
-                    ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
-                    sprintf(s, "%d", esq.o[selected].data[i].octave);
-                    ssd1306_print_string(&oled,  6 + 10*i,  41, s, 0, true);
-
-                }
-                ssd1306_print_char(&oled, xs[esq.o[selected].scale.root], ys[esq.o[selected].scale.root], 0x83, 0);
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_PMUT:
-                if(line > 2) line = 0;
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 4,   0, "PERMUTATION", 0, 0);
-                sprintf(str, "%sPATTERN  : %s",(line==0)?lsel[1]:lsel[0], esq.o[selected].regenerate[0]? "ON" : "OFF");
-                ssd1306_print_string(&oled, 4, 10, str, 0, 0);
-                sprintf(str, "%sDEGREE   : %s",(line==1)?lsel[1]:lsel[0], esq.o[selected].regenerate[1]? "ON" : "OFF");
-                ssd1306_print_string(&oled, 4, 20, str, 0, 0);
-                sprintf(str, "%sOCTAVE   : %s",(line==2)?lsel[1]:lsel[0], esq.o[selected].regenerate[2]? "ON" : "OFF");
-                ssd1306_print_string(&oled, 4, 30, str, 0, 0);
-                // sprintf(str, "%s         : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].regenerate[3]? "ON" : "OFF");
-                // ssd1306_print_string(&oled, 4, 40, str, 0, 0);
-
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected * 2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-            
-            case PAGE_SAVE:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 0,   0, "SAVE", 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_LOAD:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 0, 0, "LOAD", 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            default:
-            break;
-            }
-        }       
+        //////////////////////////////////////////////////////////////////////////////////////
+        // LED RUN ///////////////////////////////////////////////////////////////////////////
         if(hold[BTNUP])
         {
             if(page == PAGE_NOTE) scale_led(&selected);
@@ -506,9 +269,11 @@ void core1_interrupt_handler()
         }
         else swith_led(&selected);
 
+        //////////////////////////////////////////////////////////////////////////////////////
+        // READ MULTIPLEXER //////////////////////////////////////////////////////////////////
         if(_4067_get())
         {
-            switch (sreg)
+            switch (imux)
             {
                 case SHIFT:
                     if(!hold[SHIFT]) 
@@ -550,7 +315,7 @@ void core1_interrupt_handler()
                         hold[ENCDR] = true;
                     }
                     last = ENCDR;
-                    break;
+                break;
 
                 case ALTGR:
                     if(!hold[ALTGR]) 
@@ -558,11 +323,11 @@ void core1_interrupt_handler()
                         hold[ALTGR] = true;
                     }
                     last = ALTGR;
-                    break;
+                break;
 
                 case BTNUP:
                     if(!hold[BTNUP]) 
-                    { 
+                    {
                         if(hold[SHIFT]) esq.state = PLAY;
                         else if(hold[ALTGR])
                         {
@@ -572,15 +337,28 @@ void core1_interrupt_handler()
                                 repaint = true;
                             }
                         }
-                        else if((page == PAGE_MAIN)||(page == PAGE_DRFT)||(page == PAGE_SAVE)||(page == PAGE_LOAD)||(page == PAGE_PMUT))
+                        else
                         {
-                            if(--line < 0) line = 4;
-                            repaint = true;
+                            switch(page)
+                            {
+                            case PAGE_MAIN:
+                                if(--line < 0) line = 4;
+                                repaint = true;
+                            break;
+
+                            case PAGE_PMUT:
+                                if(--line < 0) line = 3;
+                                repaint = true;
+                            break;
+
+                            default:
+                            break;
+                            }
                         }
                         hold[BTNUP] = true;
                     }
                     last = BTNUP;
-                    break;
+                break;
 
                 case BTNCT:
                     if(!hold[BTNCT])
@@ -614,18 +392,30 @@ void core1_interrupt_handler()
                         hold[BTNCT] = true;
                     }
                     last = BTNCT;
-                    break;
+                break;
 
                 case BTNDW:
                     if(!hold[BTNDW])
                     {
                         if(hold[SHIFT]) esq.state = STOP;
                         else if(hold[BTNUP]) page = PAGE_SAVE;
-                        else if((page == PAGE_MAIN)||(page == PAGE_DRFT)||(page == PAGE_SAVE)||(page == PAGE_LOAD)||(page == PAGE_PMUT))
+                        else
                         {
-                            // if(++line > 4) line = 0;
-                            ++line;
-                            repaint = true;
+                            switch(page)
+                            {
+                            case PAGE_MAIN:
+                                if(++line > 4) line = 0;
+                                repaint = true;
+                            break;
+
+                            case PAGE_PMUT:
+                                if(++line > 3) line = 0;
+                                repaint = true;
+                            break;
+
+                            default:
+                            break;
+                            }
                         }
                         hold[BTNDW] = true;
                     }
@@ -770,13 +560,13 @@ void core1_interrupt_handler()
         }
         else 
         {
-            if(sreg < 4) hold_matrix[sreg * 4 + ccol] = false;
-            else if(sreg == SHIFT) 
+            if(imux < 4) hold_matrix[imux * 4 + ccol] = false;
+            if(imux == SHIFT) 
             { 
-                if(last == SHIFT) tap_armed = true;// tap = time_us_32(); 
+                if(last == SHIFT) tap_armed = true;
                 hold[SHIFT] = false;
             }
-            else hold[sreg] = false;
+            else hold[imux] = false;
         }
         //////////////////////////////////////////////////////////////////////////////////////
         // AUTOMATA //////////////////////////////////////////////////////////////////////////
@@ -784,7 +574,7 @@ void core1_interrupt_handler()
         {
             if(esq.o[i].regenerate[0])
             {
-                if(rv[i] != esq.o[i].revolutions)
+                if(crv[i] != esq.o[i].revolutions)
                 {
                     if(esq.o[i].euclidean)
                     {
@@ -799,22 +589,200 @@ void core1_interrupt_handler()
                         esq.o[i].trigger = esq.automata[i].field;
                     }
 
-                    rv[i] = esq.o[i].revolutions;
                     if(esq.o[i].regenerate[1])
                     {
-                        sequencer_sag(&esq, i, 0);
+                        mutate[0](&esq, i, esq.automata[i].field);
                         recount_all(&esq, i);
                         repaint = true;
                     }
                     if(esq.o[i].regenerate[2])
                     {
-                        sequencer_sag(&esq, i, 1);
+                        mutate[1](&esq, i, esq.automata[i].field);
                         recount_all(&esq, i);
                         repaint = true;
                     }
+                    if(esq.o[i].regenerate[3])
+                    {
+                        mutate[4](&esq, i, esq.automata[i].field);
+                        repaint = true;
+                    }
+                    crv[i] = esq.o[i].revolutions;
                 }
             }
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////
+        // REPAINT ///////////////////////////////////////////////////////////////////////////
+        if(repaint)
+        {
+            char str[16];
+            switch (page)
+            {
+            case PAGE_MAIN:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                sprintf(str, "%s BPM     : %d",(line==0)?lsel[1]:lsel[0], esq.o[selected].bpm);
+                ssd1306_print_string(&oled, 4,  0, str, 0, 0);
+                sprintf(str, "%s STEPS   : %d",(line==1)?lsel[1]:lsel[0], esq.o[selected].steps);
+                ssd1306_print_string(&oled, 4, 10, str, 0, 0);
+                sprintf(str, "%s MODE    : %s",(line==2)?lsel[1]:lsel[0], mode[esq.o[selected].mode]);
+                ssd1306_print_string(&oled, 4, 20, str, 0, 0);
+                sprintf(str, "%s FREERUN : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].freerun ? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 30, str, 0, 0);
+                sprintf(str, "%s ALIGN   : %s",(line==4)?lsel[1]:lsel[0], esq.o[selected].euclidean ? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+            
+            case PAGE_DRTN:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
+                for(int i = 0; i < 16; ++i)
+                {
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].value, i*8 + 1, 10, 0xFF, 40, 6, true);
+                }
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            case PAGE_AUTO:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                sprintf(str, "AUTOMATA : %s", esq.o[selected].regenerate[0]? "ON":"OFF");
+                ssd1306_print_string(&oled, 4, 0, str, 0, 0);
+                for(int i = 0; i < 8; ++i)
+                {
+                    switch (esq.automata[selected].rule[i])
+                    {
+                        case 0: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8C, 0); break;
+                        case 1: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8D, 0); break;
+                        case 2: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8E, 0); break;
+                        case 3: ssd1306_print_char(&oled, 4 + 16 * i, 20, 0x8F, 0); break;
+                        default: break;
+                    }
+                }
+                for(int i = 0; i < 4; ++i)
+                {
+                    if(((esq.automata[selected].rule[8 + i])>>1)&1) ssd1306_print_string(&oled, 4 + 32*i, 30, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 4 + 32*i, 30, "X", 0, 0);
+                    if(((esq.automata[selected].rule[8 + i]))&1) ssd1306_print_string(&oled, 20 + 32*i, 30, "Y", 0, 0);
+                    else ssd1306_print_string(&oled, 20 + 32*i, 30, "X", 0, 0);
+                }
+                for(int i = 0; i < 8; ++i)
+                {
+                    if(esq.automata[selected].rule[12 + i] > 0)
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
+                    else
+                    ssd1306_print_char(&oled, 4 + 16*i, 40, 0x88 + esq.automata[selected].rule[12 + i], 0);
+                }
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            case PAGE_VELO:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
+                for(int i = 0; i < 16; ++i)
+                {
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, i*8 + 1, 10, 0x7F, 40, 6, true);
+                }
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            case PAGE_FFST:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 4, 0, "OFFSET", 0, 0);
+                for(int i = 0; i < 16; ++i)
+                {
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].offset, i*8 + 1, 10, 0x20, 40, 6, true);
+                }
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            case PAGE_NOTE:
+                char s[1];
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
+                ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
+                for(int i = 0; i < 12; ++i)
+                {
+                    if(esq.o[selected].scale.data & (0x800 >> i))
+                    ssd1306_print_char(&oled, xkeys[i], ykeys[i], 0x82, 0);
+                    else
+                    ssd1306_print_char(&oled, xkeys[i], ykeys[i], 0x81, 0);
+                    ssd1306_print_string(&oled,  6 + 10*i,  24, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
+                    sprintf(s, "%d", esq.o[selected].data[i].octave);
+                    ssd1306_print_string(&oled,  6 + 10*i,  41, s, 0, true);
+
+                }
+                ssd1306_print_char(&oled, xkeys[esq.o[selected].scale.root], ykeys[esq.o[selected].scale.root], 0x83, 0);
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            case PAGE_PMUT:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 4,   0, "PERMUTATION", 0, 0);
+                sprintf(str, "%sPATTERN  : %s",(line==0)?lsel[1]:lsel[0], esq.o[selected].regenerate[0]? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 10, str, 0, 0);
+                sprintf(str, "%sDEGREE   : %s",(line==1)?lsel[1]:lsel[0], esq.o[selected].regenerate[1]? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 20, str, 0, 0);
+                sprintf(str, "%sOCTAVE   : %s",(line==2)?lsel[1]:lsel[0], esq.o[selected].regenerate[2]? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 30, str, 0, 0);
+                sprintf(str, "%sVELOCITY : %s",(line==3)?lsel[1]:lsel[0], esq.o[selected].regenerate[3]? "ON" : "OFF");
+                ssd1306_print_string(&oled, 4, 40, str, 0, 0);
+
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected * 2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+            
+            case PAGE_SAVE:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 0,   0, "SAVE", 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            case PAGE_LOAD:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 0, 0, "LOAD", 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+
+            default:
+            break;
+            }
+        }
+        else if(refresh)
+        {
+            ssd1306_set_pixels(&oled);
+            refresh = false;
+        }
+        // ~REPAINT ////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////
     }
     multicore_fifo_clear_irq(); // Clear interrupt
 }
@@ -922,12 +890,11 @@ int main()
         }
         multicore_fifo_push_blocking(0);
     }
-  
     return 0;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////
-// Send MIDI message //////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+// Send MIDI message /////////////////////////////////////////////////////////////////////
 inline static void send(uint8_t id, const uint8_t status) 
 {
     switch (status)
@@ -940,12 +907,6 @@ inline static void send(uint8_t id, const uint8_t status)
 
     case 0x90: // Note OFF
         int velocity = esq.o[id].data[esq.o[id].current].velocity;
-        if(esq.o[id].drift[0]) 
-        {
-            velocity = esq.o[id].data[esq.o[id].current].velocity + rand_in_range(-esq.o[id].drift[0], esq.o[id].drift[0]);
-            if(velocity > 0x7F) velocity = 0x7F;
-            else if(velocity < 1) velocity = 1;
-        }
         uint8_t on[3] = { status|id, esq.o[id].data[esq.o[id].current].chroma, velocity };
         _send_note(on);
         tud_midi_stream_write(cable_num, on, 3);
@@ -954,20 +915,11 @@ inline static void send(uint8_t id, const uint8_t status)
     default:
         break;
     }
-    // if(page == PAGE_LOG_)
-    // {
-    //     char str[16];
-    //     if(status == 0x80)
-    //     sprintf(str, "ON :%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-    //     if(status == 0x90)
-    //     sprintf(str, "OFF:%2X:%2X:%2X", status|id, esq.o[id].data[esq.o[id].current].chroma, esq.o[id].data[esq.o[id].current].velocity );
-    //     ssd1306_log(&oled, str, 0, 0);
-    // }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Prepare to play routine ///////////////////////////////////////////////////////////////
-inline static void arm(uint lag, absolute_time_t* t) 
+inline static void arm(uint lag, absolute_time_t* restrict t) 
 {
     int f = esq.o[0].data[esq.o[0].current].offset;
     for(int i = 1; i < TRACKS; ++i)
@@ -983,9 +935,9 @@ inline static void arm(uint lag, absolute_time_t* t)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////////
-// Loop led run //////////////////////////////////////////////////////////////////////
-inline static void swith_led(const int* track)
+/////////////////////////////////////////////////////////////////////////////////////////
+// Loop led run /////////////////////////////////////////////////////////////////////////
+inline static void swith_led(const int* restrict track)
 {
     static int led;
     _74HC595_set_all_low(&sr);
@@ -998,9 +950,9 @@ inline static void swith_led(const int* track)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////////
-// Scale representation //////////////////////////////////////////////////////////////
-inline static void scale_led(const int* track)
+/////////////////////////////////////////////////////////////////////////////////////////
+// Scale representation /////////////////////////////////////////////////////////////////
+inline static void scale_led(const int* restrict track)
 {
     static int led;
     _74HC595_set_all_low(&sr);
@@ -1020,9 +972,9 @@ static void init()
     board_init();
     tusb_init();
 	multicore_launch_core1(core1_entry);
-    set_sys_clock_khz(133000, true);
-    ///////////////////////////////////////////////////////////////////////////////
-    // OLED Init //////////////////////////////////////////////////////////////////
+    set_sys_clock_khz(150000, true);
+    /////////////////////////////////////////////////////////////////////////////////
+    // OLED Init ////////////////////////////////////////////////////////////////////
     i2c_init(i2c1, 3200000);
     gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);

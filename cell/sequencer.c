@@ -23,7 +23,7 @@
 #include "sequencer.h"
 ////////////////////////////////////////////////////////////////////////////////////
 // Track ///////////////////////////////////////////////////////////////////////////
-void track_init(track_t* o)
+void track_init(track_t* restrict o)
 {
     o->current  = 0;
     o->mode     = 0;
@@ -35,10 +35,6 @@ void track_init(track_t* o)
     o->regenerate[0] = 0;
     o->regenerate[1] = 0;
     o->regenerate[2] = 0;
-    o->drift[0] = 0;
-    o->drift[1] = 0;
-    o->drift[2] = 0;
-    o->drift[3] = 0;
     for(int i = 0; i < STEPS; ++i)
     {
         o->data[i].degree   = 0;
@@ -49,7 +45,7 @@ void track_init(track_t* o)
     }
 }
 
-void loop_forward(track_t* o)
+void loop_forward(track_t* restrict o)
 {
     ++o->current;
     if(o->current >= o->steps) 
@@ -59,7 +55,7 @@ void loop_forward(track_t* o)
     }
 }
 
-void loop_backward(track_t* o)
+void loop_backward(track_t* restrict o)
 {
     --o->current;
     if(o->current < 0)
@@ -69,7 +65,7 @@ void loop_backward(track_t* o)
     }
 }
 
-void loop_pingpong(track_t* o)
+void loop_pingpong(track_t* restrict o)
 {
     static bool f;
     if(f)
@@ -94,7 +90,7 @@ void loop_pingpong(track_t* o)
     }
 }
 
-void loop_random(track_t* o)
+void loop_random(track_t* restrict o)
 {
     static int r;
     o->current = rand_in_range(0, o->steps - 1);
@@ -106,17 +102,17 @@ void loop_random(track_t* o)
     }
 }
 
-note get_note(track_t* o)
+note get_note(track_t* restrict o)
 {
     return o->data[o->current];
 }
 
-void insert_bits(track_t* o, uint16_t bits)
+void insert_bits(track_t* restrict o, uint16_t bits)
 {
     o->trigger = bits;
 }
 
-void (*loop_sequence[])(track_t*) = 
+void (*loop_sequence[])(track_t* restrict) = 
 {
     loop_forward,
     loop_backward,
@@ -124,7 +120,7 @@ void (*loop_sequence[])(track_t*) =
     loop_random
 };
 
-void reset_timestamp(sequencer* o, int track, int bpm)
+void reset_timestamp(sequencer* restrict o, int track, int bpm)
 {
     if(bpm > 999) bpm = 999;
     else if(bpm < 1) bpm = 1;
@@ -135,7 +131,7 @@ void reset_timestamp(sequencer* o, int track, int bpm)
     if(o->o[track].atom <= 0) o->o[track].atom = 1;
 }
 
-void sequencer_init(sequencer* o, int bpm)
+void sequencer_init(sequencer* restrict o, int bpm)
 {
     o->state = STOP;
     for(int i = 0; i < TRACKS; ++i)
@@ -147,7 +143,7 @@ void sequencer_init(sequencer* o, int bpm)
     }
 }
 
-void sequencer_rand(sequencer* o, int track)
+void sequencer_rand(sequencer* restrict o, int track)
 {
     // uint16_t beat = rand_in_range(1, 0xFFFF);
     // insert_bits(&o->o[track], beat);
@@ -156,7 +152,7 @@ void sequencer_rand(sequencer* o, int track)
     set_scale(&o->o[track].scale);
     for(int i = 0; i < STEPS; ++i)
     {
-        o->o[track].data[i].value    = rand_in_range(1, 32);
+        o->o[track].data[i].value    = rand_in_range(1, 64);
         o->o[track].data[i].offset   = 0;//rand_in_range(-0x7F,  0x7F);
         o->o[track].data[i].degree   = rand_in_range(0, 11);
         o->o[track].data[i].octave   = rand_in_range(0, 8);
@@ -165,7 +161,7 @@ void sequencer_rand(sequencer* o, int track)
     }
 }
 
-void recount_all(sequencer* o, int track)
+void recount_all(sequencer* restrict o, int track)
 {
     for(int i = 0; i < STEPS; ++i)
     {
@@ -173,48 +169,158 @@ void recount_all(sequencer* o, int track)
     }
 }
 
-
-void sequencer_sag(sequencer* o, int track, int dest)
+void sag_degree(sequencer* restrict o, int track, uint16_t data)
 {
     int p = STEPS - 1;
-    switch(dest)
+    for(int i = STEPS - 1; i >= 0; --i)
     {
-    case 0:
-        
-        for(int i = STEPS - 1; i >= 0; --i)
+        if((data>>i)&1)
         {
-            if((o->automata[track].field>>i)&1)
-            {
-                swap(&o->o[track].data[i].degree, &o->o[track].data[p].degree);
-                --p;
-            }
+            swap(&o->o[track].data[i].degree, &o->o[track].data[p].degree);
+            --p;
         }
-        break;
-
-    case 1:
-        for(int i = STEPS - 1; i >= 0; --i)
-        {
-            if((o->automata[track].field>>i)&1)
-            {
-                swap(&o->o[track].data[i].octave, &o->o[track].data[p].octave);
-                --p;
-            }
-        }
-        break;
-
-    case 2:
-        for(int i = STEPS - 1; i >= 0; --i)
-        {
-            if((o->automata[track].field>>i)&1)
-            {
-                swap(&o->o[track].data[i].degree, &o->o[track].data[p].degree);
-                swap(&o->o[track].data[i].octave, &o->o[track].data[p].octave);
-                --p;
-            }
-        }
-        break;
-
-    default:
-        break;
     }
 }
+
+void sag_octave(sequencer* restrict o, int track, uint16_t data)
+{
+    int p = STEPS - 1;
+    for(int i = STEPS - 1; i >= 0; --i)
+    {
+        if((data>>i)&1)
+        {
+            swap(&o->o[track].data[i].octave, &o->o[track].data[p].octave);
+            --p;
+        }
+    }
+}
+
+void sag_velocity(sequencer* restrict o, int track, uint16_t data)
+{
+    int p = STEPS - 1;
+    for(int i = STEPS - 1; i >= 0; --i)
+    {
+        if((data>>i)&1)
+        {
+            swap(&o->o[track].data[i].velocity, &o->o[track].data[p].velocity);
+            --p;
+        }
+    }
+}
+
+void rlf_velocity(sequencer* restrict o, int track, uint16_t data)
+{
+    int l = 0;
+    int c = 0;
+    int w = 0;
+    for(int i = 0; i < 16; ++i)
+    {
+        c = ((data>>i)&1);
+        if(l) l==c? ++w : --w;
+        else  l==c? --w : ++w;
+        l = c;
+        o->o[track].data[i].velocity += w;
+    }
+    for(int i = 0; i < 16; ++i)
+    {
+        c = ((data>>i)&1);
+        if(l) l==c? ++w : --w;
+        else  l==c? --w : ++w;
+        l = c;
+        o->o[track].data[i].velocity += w;
+        if(o->o[track].data[i].velocity > 0x7F)   o->o[track].data[i].velocity = 0x7F;
+        else if(o->o[track].data[i].velocity < 1) o->o[track].data[i].velocity = 1;
+    }
+}
+
+void xlr_velocity(sequencer* restrict o, int track, uint16_t data)
+{
+    uint16_t f = data;
+    uint16_t d = data;
+    int out[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 16; j++) out[j] += (((f>>j)&1) + ((d>>j)&1));
+        f = rightrot16(f, i);
+        d = leftrot16(d, i);
+    }
+    for(int i = 0; i < 16; i++) o->o[track].data[i].velocity = out[i]*8;
+}
+
+void rrl_velocity(sequencer* restrict o, int track, uint16_t data)
+{
+    uint16_t f = data;
+    uint16_t d = data;
+    int out[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    for(int i = 0; i < 16; i++)
+    {
+        for(int j = 0; j < 16; j++) out[j] += ((f>>j)&1 & (f>>i)&1);
+        f = rightrot16(f, i);
+    }
+    for(int i = 0; i < 16; i++) o->o[track].data[i].velocity = out[i]*8;
+}
+
+void irl_velocity(sequencer* restrict o, int track, uint16_t data)
+{
+    uint16_t f = data;
+    uint16_t d = data;
+    int out[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    for(int i = 0; i < 16; i++)
+    {
+        for(int j = 0; j < 16; j++) out[j] += ((~f>>j)&1 + (f>>i)&1);
+        f = rightrot16(f, i);
+    }
+    for(int i = 0; i < 16; i++) o->o[track].data[i].velocity = out[i]*8;
+}
+
+
+void siv_degree(sequencer* restrict o, int track, uint16_t data)
+{
+    int period[16];
+    int f = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        if((data>>i)&1)
+        {
+            period[f] = i%12;
+            ++f;
+        }
+    }
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].degree += period[c];
+        o->o[track].data[i].degree %= 12;
+        ++c; if(c >= f) c = 0;
+    }
+}
+
+void prm_degree(sequencer* restrict o, int track, uint16_t data)
+{
+    int period[16];
+    int l = sieve(period, 16, data);
+
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].degree += period[c];
+        o->o[track].data[i].degree %= 12;
+        ++c; if(c >= l) c = 0;
+    }
+
+}
+
+
+
+void (*mutate[])(sequencer* restrict, int, uint16_t) = 
+{
+    prm_degree,
+    // siv_degree,
+    // sag_degree,
+    sag_octave,
+    sag_velocity,
+    rlf_velocity,
+    rrl_velocity,
+    xlr_velocity,
+    irl_velocity
+};

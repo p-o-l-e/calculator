@@ -24,14 +24,14 @@ typedef struct
 
 } CD74HC595;
 
-void shift_register_74HC595_init(CD74HC595* sr, spi_inst_t *spiPort, uint8_t sdiPin, uint8_t sckPin, uint8_t latchPin);
+void shift_register_74HC595_init(CD74HC595* restrict sr, spi_inst_t* restrict spiPort, uint8_t sdiPin, uint8_t sckPin, uint8_t latchPin);
     
-void _74HC595_set_all(CD74HC595* sr, const uint8_t * digitalValues);
-uint8_t* _74HC595_get_all(CD74HC595* sr); 
-void _74HC595_set(CD74HC595* sr, const uint8_t pin, const uint8_t value);
-void _74HC595_set_no_update(CD74HC595* sr, const uint8_t pin, uint8_t value);
-void _74HC595_update_registers(CD74HC595* sr);
-void _74HC595_set_all_low(CD74HC595* sr);
-void _74HC595_set_all_high(CD74HC595* sr); 
-uint8_t _74HC595_get(CD74HC595* sr, const uint8_t pin);
+void _74HC595_set_all(CD74HC595* restrict sr, const uint8_t* restrict digitalValues);
+uint8_t* _74HC595_get_all(CD74HC595* restrict sr); 
+void _74HC595_set(CD74HC595* restrict sr, const uint8_t pin, const uint8_t value);
+void _74HC595_set_no_update(CD74HC595* restrict sr, const uint8_t pin, uint8_t value);
+void _74HC595_update_registers(CD74HC595* restrict sr);
+void _74HC595_set_all_low(CD74HC595* restrict sr);
+void _74HC595_set_all_high(CD74HC595* restrict sr); 
+uint8_t _74HC595_get(CD74HC595* restrict sr, const uint8_t pin);
 

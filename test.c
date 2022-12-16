@@ -1,15 +1,6 @@
-#include "utility.h"
+#include <stdio.h>
 
-uint16_t bjorklund(int steps, int pulses) 
-{
-    uint16_t result = 1;
-    for (int i = 1; i < steps; i++) 
-    {
-        result <<= 1;
-        result += (pulses*i)/steps - (pulses*(i-1))/steps;
-    }
-    return result;
-}
+
 
 
 int sieve(int* period, int steps, unsigned data)
@@ -54,4 +45,14 @@ int sieve(int* period, int steps, unsigned data)
         }
     }
     return l;
+}
+
+int main()
+{
+    int ff[16];
+                        //0b1111000011110000
+    int l = sieve(ff, 16, 0b0);
+    for(int i = 0; i < l; i++) printf("%2d ", ff[i]);
+
+    return 0;
 }

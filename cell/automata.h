@@ -17,6 +17,6 @@ typedef struct
 } automata_t;
 
 
-void automata_evolve(automata_t* o);
-void automata_init(automata_t* o);
-void automata_rand(automata_t* o);
+void automata_evolve(automata_t* restrict o);
+void automata_init(automata_t* restrict o);
+void automata_rand(automata_t* restrict o);

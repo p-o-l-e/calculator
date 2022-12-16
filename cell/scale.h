@@ -14,6 +14,6 @@ typedef struct
 
 } scale_t;
 
-void set_scale(scale_t* scale);
-void transpose_root(scale_t* scale);
-void note_from_degree(scale_t* scale, note* o);
+void set_scale(scale_t* restrict scale);
+void transpose_root(scale_t* restrict scale);
+void note_from_degree(scale_t* restrict scale, note* restrict o);

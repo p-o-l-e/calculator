@@ -10,7 +10,7 @@ unsigned get_point(unsigned x, unsigned y, unsigned c)
     return data;
 }
 
-void set_bits(CD74HC595* sr, unsigned a)
+void set_bits(CD74HC595* restrict sr, unsigned a)
 {
     for(int i = 0; i < 16; i++)
     {
@@ -19,7 +19,7 @@ void set_bits(CD74HC595* sr, unsigned a)
     }
 }
 
-void pset(CD74HC595* sr, unsigned x, unsigned y, unsigned c)
+void pset(CD74HC595* restrict sr, unsigned x, unsigned y, unsigned c)
 {   
     unsigned data = 0;
     if (c  < 3) data = ((1 << x) << (4*(c+1))) + (0b1111^(1 << y));
@@ -32,7 +32,7 @@ void pset(CD74HC595* sr, unsigned x, unsigned y, unsigned c)
     }
 }
 
-void pset_clr(CD74HC595* sr, unsigned x, unsigned y, unsigned c)
+void pset_clr(CD74HC595* restrict sr, unsigned x, unsigned y, unsigned c)
 {
     
     unsigned cb = 0;
