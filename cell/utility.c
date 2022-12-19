@@ -24,34 +24,29 @@ int sieve(int* period, int steps, unsigned data)
         }
     }
     int c = period[0];
-    int r = 0;
     for(int i = 0; i < f; ++i)
     {
         c = period[i];
         if(!c) continue;
-        for(int j = i + 1; j < f; ++j)
+        for(int j = 0; j < f; ++j)
         {
+            if(i == j) continue;
             if(c == 1)
             {
                 if(period[j] == 1) period[j] = 0;
-                ++r;
             }
-            else if((period[j]%c) == 0)
-            {
-                period[j] = 0;
-                ++r;
-            }
+            else if((period[j]%c) == 0) period[j] = 0;
         }
     }
-    int l = 0;
+    c = 0;
     for(int i = 0; i < f; i++)
     {
         if(period[i]) 
         {
-            period[l] = period[i];
-            if(l!=i)  period[i] = 0;
-            ++l;
+            period[c] = period[i];
+            if(c != i)  period[i] = 0;
+            ++c;
         }
     }
-    return l;
+    return c;
 }

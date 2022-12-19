@@ -89,6 +89,7 @@ void automata_init(automata_t* restrict o)
     o->rule[19] =  1;
     
     o->field = 0;
+    o->on = false;
 }
 
 void automata_rand(automata_t* restrict o)

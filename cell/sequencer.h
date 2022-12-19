@@ -36,6 +36,9 @@ typedef struct
     note data[STEPS];   // Note data
     scale_t scale;      // Note set
     uint16_t trigger;   // NoteON bits
+    int sieve[8];       // Sieve
+    int gaps;           // Sieve gaps
+    int median;			// Sieve center
     int revolutions;    // Beat counter
     int beat;           // Beat length
     int step;           // Step length
@@ -46,7 +49,8 @@ typedef struct
     int steps;          // Steps count
     int mode;           // Loop mode
     bool euclidean;     // Bresenham
-    bool regenerate[4]; // [0]Beat [1]Note [2]Octave [3]Velocity
+    bool permute[5];    // [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset
+    bool sift[5];		// [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset
     bool reset;         // Recount timestamp
     bool freerun;       // Sync
 
@@ -64,8 +68,8 @@ typedef struct
 
 } sequencer;
 
-///////////////////////////////////////////////////////////////
-// Track routines /////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Track routines /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void track_init     (track_t* restrict o);
 void loop_forward   (track_t* restrict o);
 void loop_backward  (track_t* restrict o);
@@ -75,8 +79,8 @@ void insert_bits    (track_t* restrict o, uint16_t bits);
 note get_note       (track_t* restrict o);
 extern void (*loop_sequence[])(track_t* restrict);
 
-///////////////////////////////////////////////////////////////
-// Sequencer routines /////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sequencer routines /////////////////////////////////////////////////////////////////////////////////////////////////////////
 void reset_timestamp(sequencer* restrict o, int track, int bpm);
 void sequencer_init (sequencer* restrict o, int bpm);
 void sequencer_run  (sequencer* restrict o);
@@ -85,14 +89,29 @@ void sequencer_pause(sequencer* restrict o);
 void sequencer_rand (sequencer* restrict o, int track);
 void recount_all    (sequencer* restrict o, int track);
 uint32_t get_timeout(sequencer* restrict o, int track); // Time to the next step - NULL if timeline is clear
-void sag_degree(sequencer* restrict o, int track, uint16_t data);   // Sheep and Goats - degree
-void siv_degree(sequencer* restrict o, int track, uint16_t data);   // Sieve shift - degree
-void prm_degree(sequencer* restrict o, int track, uint16_t data);   // Sieve shift - degree
-void sag_octave(sequencer* restrict o, int track, uint16_t data);   // Sheep and Goats - octave
-void sag_velocity(sequencer* restrict o, int track, uint16_t data); // Sheep and Goats - octave
-void rlf_velocity(sequencer* restrict o, int track, uint16_t data); // Sheep and Goats - octave
-void xlr_velocity(sequencer* restrict o, int track, uint16_t data);
-void rrl_velocity(sequencer* restrict o, int track, uint16_t data);
-void irl_velocity(sequencer* restrict o, int track, uint16_t data);
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sheep and Goats - Permutations /////////////////////////////////////////////////////////////////////////////////////////////
+void sag_degree(sequencer* restrict o, int track, uint16_t data);   
+void sag_octave(sequencer* restrict o, int track, uint16_t data);
+void sag_velocity(sequencer* restrict o, int track, uint16_t data);
+void sag_duration(sequencer* restrict o, int track, uint16_t data);
+void sag_offset(sequencer* restrict o, int track, uint16_t data);
 
 extern void (*mutate[])(sequencer* restrict, int, uint16_t); 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sieve //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void regenerate_sieve(sequencer* restrict o, int track, uint16_t data);
+void sift_degree(sequencer* restrict o, int track);
+void sift_octave(sequencer* restrict o, int track);
+void sift_velocity(sequencer* restrict o, int track);
+void sift_duration(sequencer* restrict o, int track);
+void sift_offset(sequencer* restrict o, int track);
+
+extern void (*sift[])(sequencer* restrict, int);
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+

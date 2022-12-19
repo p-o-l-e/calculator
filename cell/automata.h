@@ -13,6 +13,7 @@ typedef struct
     int current;
     int rule[20];
     int pos[2];
+    bool on;
 
 } automata_t;
 

@@ -151,8 +151,11 @@ void ssd1306_print_char(ssd1306_t* restrict p, uint8_t x, uint8_t y, const uint8
 void ssd1306_print_string(ssd1306_t* restrict p, uint8_t x, uint8_t y, const char* restrict s, bool invert, bool vertical);
 void ssd1306_log(ssd1306_t* restrict p, const char* restrict s, uint16_t ms, bool clr);
 void ssd1306_line(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t length, bool vertical);
+void ssd1306_square(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t width);
+void ssd1306_corners(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height);
 void ssd1306_progress_bar(ssd1306_t* restrict oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical);
 void ssd1306_glyph(ssd1306_t* restrict oled, const bool* restrict data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
+void ssd1306_xbm(ssd1306_t* restrict oled, const unsigned char* restrict data, uint8_t w, uint8_t h, uint8_t x, uint8_t y);
 void ssd1306_progress_cv_bar(ssd1306_t* restrict oled, int8_t value, uint8_t x, uint8_t y, uint8_t max, uint8_t length, uint8_t width);
 
 #endif

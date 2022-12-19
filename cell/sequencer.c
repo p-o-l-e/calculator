@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 #include "sequencer.h"
-////////////////////////////////////////////////////////////////////////////////////
-// Track ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Track //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void track_init(track_t* restrict o)
 {
     o->current  = 0;
@@ -32,9 +32,11 @@ void track_init(track_t* restrict o)
     o->trigger = 0;
     o->freerun = false;
     o->euclidean = false;
-    o->regenerate[0] = 0;
-    o->regenerate[1] = 0;
-    o->regenerate[2] = 0;
+    for(int i = 0; i < 5; ++i)
+    {
+    	o->permute[i] = 0;
+    	o->sift[i] = 0;
+    }
     for(int i = 0; i < STEPS; ++i)
     {
         o->data[i].degree   = 0;
@@ -44,6 +46,9 @@ void track_init(track_t* restrict o)
         o->data[i].offset   = 0;
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Loops //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void loop_forward(track_t* restrict o)
 {
@@ -102,6 +107,17 @@ void loop_random(track_t* restrict o)
     }
 }
 
+void (*loop_sequence[])(track_t* restrict) = 
+{
+    loop_forward,
+    loop_backward,
+    loop_pingpong,
+    loop_random
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 note get_note(track_t* restrict o)
 {
     return o->data[o->current];
@@ -111,14 +127,6 @@ void insert_bits(track_t* restrict o, uint16_t bits)
 {
     o->trigger = bits;
 }
-
-void (*loop_sequence[])(track_t* restrict) = 
-{
-    loop_forward,
-    loop_backward,
-    loop_pingpong,
-    loop_random
-};
 
 void reset_timestamp(sequencer* restrict o, int track, int bpm)
 {
@@ -169,6 +177,8 @@ void recount_all(sequencer* restrict o, int track)
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Permutations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sag_degree(sequencer* restrict o, int track, uint16_t data)
 {
     int p = STEPS - 1;
@@ -208,119 +218,128 @@ void sag_velocity(sequencer* restrict o, int track, uint16_t data)
     }
 }
 
-void rlf_velocity(sequencer* restrict o, int track, uint16_t data)
+void sag_duration(sequencer* restrict o, int track, uint16_t data)
 {
-    int l = 0;
-    int c = 0;
-    int w = 0;
-    for(int i = 0; i < 16; ++i)
-    {
-        c = ((data>>i)&1);
-        if(l) l==c? ++w : --w;
-        else  l==c? --w : ++w;
-        l = c;
-        o->o[track].data[i].velocity += w;
-    }
-    for(int i = 0; i < 16; ++i)
-    {
-        c = ((data>>i)&1);
-        if(l) l==c? ++w : --w;
-        else  l==c? --w : ++w;
-        l = c;
-        o->o[track].data[i].velocity += w;
-        if(o->o[track].data[i].velocity > 0x7F)   o->o[track].data[i].velocity = 0x7F;
-        else if(o->o[track].data[i].velocity < 1) o->o[track].data[i].velocity = 1;
-    }
-}
-
-void xlr_velocity(sequencer* restrict o, int track, uint16_t data)
-{
-    uint16_t f = data;
-    uint16_t d = data;
-    int out[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    for(int i = 0; i < 8; i++)
-    {
-        for(int j = 0; j < 16; j++) out[j] += (((f>>j)&1) + ((d>>j)&1));
-        f = rightrot16(f, i);
-        d = leftrot16(d, i);
-    }
-    for(int i = 0; i < 16; i++) o->o[track].data[i].velocity = out[i]*8;
-}
-
-void rrl_velocity(sequencer* restrict o, int track, uint16_t data)
-{
-    uint16_t f = data;
-    uint16_t d = data;
-    int out[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    for(int i = 0; i < 16; i++)
-    {
-        for(int j = 0; j < 16; j++) out[j] += ((f>>j)&1 & (f>>i)&1);
-        f = rightrot16(f, i);
-    }
-    for(int i = 0; i < 16; i++) o->o[track].data[i].velocity = out[i]*8;
-}
-
-void irl_velocity(sequencer* restrict o, int track, uint16_t data)
-{
-    uint16_t f = data;
-    uint16_t d = data;
-    int out[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    for(int i = 0; i < 16; i++)
-    {
-        for(int j = 0; j < 16; j++) out[j] += ((~f>>j)&1 + (f>>i)&1);
-        f = rightrot16(f, i);
-    }
-    for(int i = 0; i < 16; i++) o->o[track].data[i].velocity = out[i]*8;
-}
-
-
-void siv_degree(sequencer* restrict o, int track, uint16_t data)
-{
-    int period[16];
-    int f = 0;
-    for(int i = 0; i < STEPS; ++i)
+    int p = STEPS - 1;
+    for(int i = STEPS - 1; i >= 0; --i)
     {
         if((data>>i)&1)
         {
-            period[f] = i%12;
-            ++f;
+            swap(&o->o[track].data[i].value, &o->o[track].data[p].value);
+            --p;
         }
     }
-    int c = 0;
-    for(int i = 0; i < STEPS; ++i)
-    {
-        o->o[track].data[i].degree += period[c];
-        o->o[track].data[i].degree %= 12;
-        ++c; if(c >= f) c = 0;
-    }
 }
 
-void prm_degree(sequencer* restrict o, int track, uint16_t data)
+void sag_offset(sequencer* restrict o, int track, uint16_t data)
 {
-    int period[16];
-    int l = sieve(period, 16, data);
-
-    int c = 0;
-    for(int i = 0; i < STEPS; ++i)
+    int p = STEPS - 1;
+    for(int i = STEPS - 1; i >= 0; --i)
     {
-        o->o[track].data[i].degree += period[c];
-        o->o[track].data[i].degree %= 12;
-        ++c; if(c >= l) c = 0;
+        if((data>>i)&1)
+        {
+            swap(&o->o[track].data[i].offset, &o->o[track].data[p].offset);
+            --p;
+        }
     }
-
 }
-
-
 
 void (*mutate[])(sequencer* restrict, int, uint16_t) = 
 {
-    prm_degree,
-    // siv_degree,
-    // sag_degree,
+    sag_degree,
     sag_octave,
     sag_velocity,
-    rlf_velocity,
-    rrl_velocity,
-    xlr_velocity,
-    irl_velocity
+    sag_duration,
+    sag_offset
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sieves /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void regenerate_sieve(sequencer* restrict o, int track, uint16_t data)
+{
+	int period[STEPS];
+	o->o[track].gaps = sieve(period, STEPS, data);
+	o->o[track].median = 0;
+    for(int i = 0; i < o->o[track].gaps; ++i) o->o[track].median += period[i];
+    o->o[track].median /= o->o[track].gaps;
+	for(int i = 0; i < 8; ++i)
+	{
+		o->o[track].sieve[i] = period[i%o->o[track].gaps];
+	}
+}
+
+
+void sift_degree(sequencer* restrict o, int track)
+{
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].degree += o->o[track].sieve[c];
+        o->o[track].data[i].degree %= 12;
+        if(++c > 7) c = 0;
+    }
+}
+
+void sift_octave(sequencer* restrict o, int track)
+{
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].octave += o->o[track].sieve[c];
+        o->o[track].data[i].octave %= 10;
+        if(++c > 7) c = 0;
+    }
+}
+
+void sift_velocity(sequencer* restrict o, int track)
+{
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].velocity += (o->o[track].sieve[c] - o->o[track].median);
+        if(o->o[track].data[i].velocity > 0x7F) o->o[track].data[i].velocity = 0x7F;
+        else if(o->o[track].data[i].velocity < 1) o->o[track].data[i].velocity = 1;
+        if(++c > 7) c = 0;
+    }
+}
+
+void sift_duration(sequencer* restrict o, int track)
+{
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].value += (o->o[track].sieve[c] - o->o[track].median);
+        if(o->o[track].data[i].value > 64) o->o[track].data[i].value = 64;
+        else if(o->o[track].data[i].value < 1) o->o[track].data[i].value = 1;
+        if(++c > 7) c = 0;
+    }
+}
+
+void sift_offset(sequencer* restrict o, int track)
+{
+    int c = 0;
+    for(int i = 0; i < STEPS; ++i)
+    {
+        o->o[track].data[i].offset += (o->o[track].sieve[c] - o->o[track].median);
+        if(o->o[track].data[i].offset > 64) o->o[track].data[i].offset = 64;
+        else if(o->o[track].data[i].offset < 1) o->o[track].data[i].offset = 1;
+        if(++c > 7) c = 0;
+    }
+}
+
+
+void (*sift[])(sequencer* restrict, int) =
+{
+	sift_degree,
+	sift_octave,
+	sift_velocity,
+	sift_duration,
+	sift_offset
+};
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

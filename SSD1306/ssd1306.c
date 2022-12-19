@@ -112,6 +112,39 @@ void ssd1306_line(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t length
     else for(int i = x; i < length + x; i++) ssd1306_pset(oled, i, y);
 }
 
+void ssd1306_square(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t width)
+{
+    for(int i = x; i <= (x + width); ++i)
+    {
+        ssd1306_pset(oled, i, y);
+        ssd1306_pset(oled, i, y + width);
+    }
+    for(int i = y; i <= (y + width); ++i)
+    {
+        ssd1306_pset(oled, x, i);
+        ssd1306_pset(oled, x + width, i);
+    }
+}
+
+void ssd1306_corners(ssd1306_t* restrict oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+{
+    ssd1306_pset(oled, x, y);
+    ssd1306_pset(oled, x + 1, y);
+    ssd1306_pset(oled, x, y + 1);
+
+    ssd1306_pset(oled, x + width, y);
+    ssd1306_pset(oled, x + width - 1, y);
+    ssd1306_pset(oled, x + width, y + 1);
+
+    ssd1306_pset(oled, x + width, y + height);
+    ssd1306_pset(oled, x + width - 1, y + height);
+    ssd1306_pset(oled, x + width, y + height - 1);
+
+    ssd1306_pset(oled, x, y + height);
+    ssd1306_pset(oled, x + 1, y + height);
+    ssd1306_pset(oled, x, y + height - 1);
+}
+
 void ssd1306_progress_bar(ssd1306_t* restrict oled, uint16_t value, uint16_t x, uint16_t y, uint16_t max, uint8_t length, uint8_t width, bool vertical)
 {
     if(vertical)
@@ -133,4 +166,26 @@ void ssd1306_glyph(ssd1306_t* restrict oled, const bool* restrict data, uint8_t 
     for(int i = 0; i < h; ++i)
         for(int j = 0; j < w; ++j)
             if(data[j + w * i]) ssd1306_pset(oled, x + j, y + i);
+}
+
+void ssd1306_xbm(ssd1306_t* restrict oled, const unsigned char* restrict data, uint8_t w, uint8_t h, uint8_t x, uint8_t y)
+{
+	
+	int w_bytes = (w + 7) / 8;// Width of bitmap in bytes
+	int cx = 0;
+	int cy = 0;
+	for(int i = 0; i < h; i++) 
+	{
+		for(int j = 0; j < w_bytes; j++) 
+		{
+	      	// Get current byte with offset
+	      	char byte = data[i * w_bytes + j];
+	      	// Loop through the bits
+	      	for(int k = 0; k < 8; k++) 
+	      	{
+	        	if(byte & (1<<k)) ssd1306_pset(oled, cx + x, cy + y);
+	        	if(++cx > (w-1)) { cx = 0; ++cy; };
+	      	}
+	  	}
+	}
 }
