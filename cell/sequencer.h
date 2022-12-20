@@ -89,6 +89,8 @@ void sequencer_pause(sequencer* restrict o);
 void sequencer_rand (sequencer* restrict o, int track);
 void recount_all    (sequencer* restrict o, int track);
 uint32_t get_timeout(sequencer* restrict o, int track); // Time to the next step - NULL if timeline is clear
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sheep and Goats - Permutations /////////////////////////////////////////////////////////////////////////////////////////////
 void sag_degree(sequencer* restrict o, int track, uint16_t data);   
