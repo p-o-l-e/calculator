@@ -46,13 +46,17 @@ void core1_interrupt_handler()
     int ncoder_index;
     ncoder_index = quad_encoder_init(&ncoder);
     
-    bool hold[16]; memset(hold, 0, sizeof(hold));
-    bool hold_matrix[16]; memset(hold_matrix, 0, sizeof(hold_matrix));
-    bool refresh = false;
+    bool hold[16]; 
+    memset(hold, 0, sizeof(hold));
+    bool hold_matrix[16]; 
+    memset(hold_matrix, 0, sizeof(hold_matrix));
+    bool refresh = false;                // ssd1306_xbm(&oled, sieve_bits, 128, 64, 0, 0);
+
     bool repaint = true;
     bool tap_armed = false;
     bool save = true;
     int tap = 0;
+    int comb = 0; 	  // Ranged value accumulator
     int prior = 0;    // Last encoder value
     int last = 0;     // Last action
     int imux = 4;     // Multiplexer iterator
@@ -102,22 +106,24 @@ void core1_interrupt_handler()
                 {
                     case PAGE_DRTN: 
                         esq.o[selected].data[section[0]].value += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-                        if(esq.o[selected].data[section[0]].value > 0xFF) esq.o[selected].data[section[0]].value = 0xFF;
-                        else if(esq.o[selected].data[section[0]].value < 1) esq.o[selected].data[section[0]].value = 1;
+                        fit_duration(&esq, selected, section[0]);
                         repaint = true;
                     break;
 
                     case PAGE_VELO: 
-                        esq.o[selected].data[section[0]].velocity  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-                        if(esq.o[selected].data[section[0]].velocity > 0x7F) esq.o[selected].data[section[0]].velocity = 0x7F;
-                        else if(esq.o[selected].data[section[0]].velocity < 1) esq.o[selected].data[section[0]].velocity = 1;
+                    	int incr = ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+                    	
+                    	if(comb > 6) comb = 0;
+                    	set_section[2](&esq, selected, section[0], 6, comb, incr);
+                    	comb++;
+                        // esq.o[selected].data[section[0]].velocity  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+						// fit_velocity(&esq, selected, section[0]);
                         repaint = true;
                     break;
 
                     case PAGE_FFST: 
                         esq.o[selected].data[section[0]].offset  += ((prior > current) ? -1 - 2*hold[ENCDR] : 1 + 2*hold[ENCDR]);
-                        if(esq.o[selected].data[section[0]].offset > 0x20) esq.o[selected].data[section[0]].offset = 0x20;
-                        else if(esq.o[selected].data[section[0]].offset < 0) esq.o[selected].data[section[0]].offset = 0;
+                        fit_offset(&esq, selected, section[0]);
                         repaint = true;
                     break;
 
@@ -156,8 +162,7 @@ void core1_interrupt_handler()
             	    	for(int i = 0; i <= section[1]-section[0]; ++i)
 						{
 							esq.o[selected].data[i+section[0]].velocity +=  ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-							if(esq.o[selected].data[i+section[0]].velocity > 0x7F) esq.o[selected].data[i+section[0]].velocity = 0x7F;
-							else if(esq.o[selected].data[i+section[0]].velocity < 1) esq.o[selected].data[i+section[0]].velocity = 1;
+							fit_velocity(&esq, selected, i+section[0]);
 						}
                         repaint = true;
                     break;
@@ -254,8 +259,7 @@ void core1_interrupt_handler()
                         for(int i = 0; i < STEPS; i++)
                         {
                             esq.o[selected].data[i].velocity -= ((cap > 0)? 1 + 4*hold[ENCDR]: -1-4*hold[ENCDR]);
-                            if(esq.o[selected].data[i].velocity > 0x7F) esq.o[selected].data[i].velocity = 0x7F;
-                            else if(esq.o[selected].data[i].velocity < 0) esq.o[selected].data[i].velocity = 0;
+                            fit_velocity(&esq, selected, i);
                         }  
                         cap = 0;
                         repaint = true;
@@ -271,8 +275,7 @@ void core1_interrupt_handler()
                         for(int i = 0; i < STEPS; i++)
                         {
                             esq.o[selected].data[i].value -= ((cap > 0)? 1 + 8*hold[ENCDR]: -1-8*hold[ENCDR]);
-                            if(esq.o[selected].data[i].value > 0xFF) esq.o[selected].data[i].value = 0xFF;
-                            else if(esq.o[selected].data[i].value < 0) esq.o[selected].data[i].value = 0;
+                            fit_duration(&esq, selected, i);
                         }  
                         cap = 0;
                         repaint = true;
@@ -435,6 +438,42 @@ void core1_interrupt_handler()
                                 }
                             break;
 
+							case PAGE_DRTN:
+								switch(line)
+                                {
+                                case 0:
+                                    esq.o[selected].sift[3]^=1;
+                                    repaint = true;
+                                break;
+
+                                case 1:
+                                    esq.o[selected].permute[3]^=1;
+                                    repaint = true;
+                                break;
+                                
+                                default:
+                                break;
+                                }
+                            break;                            
+
+							case PAGE_FFST:
+								switch(line)
+                                {
+                                case 0:
+                                    esq.o[selected].sift[4]^=1;
+                                    repaint = true;
+                                break;
+
+                                case 1:
+                                    esq.o[selected].permute[4]^=1;
+                                    repaint = true;
+                                break;
+                                
+                                default:
+                                break;
+                                }
+                            break;
+                            
                             case PAGE_NOTE:
                                 switch(line)
                                 {
@@ -461,7 +500,6 @@ void core1_interrupt_handler()
                                 default:
                                 break;
                                 }
-
                             break;
                             
                             default:
@@ -775,6 +813,7 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
                 ssd1306_print_char(&oled, 102, 1, esq.o[selected].sift[3] ? 0xA0 : 0xA1, false);
                 ssd1306_print_char(&oled, 114, 1, esq.o[selected].permute[3] ? 0x9E : 0x9F, false);
+                if(line > 1) line = 0;
                 ssd1306_corners(&oled, 101 + 12*line, 0, 9, 8);
                 
                 for(int i = 0; i < 16; ++i)
@@ -827,14 +866,16 @@ void core1_interrupt_handler()
             case PAGE_VELO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
-                ssd1306_print_char(&oled, 102, 1, esq.o[selected].sift[2] ? 0xA0 : 0xA1, false);
-                ssd1306_print_char(&oled, 114, 1, esq.o[selected].permute[2] ? 0x9E : 0x9F, false);
-
-                ssd1306_corners(&oled, 101 + 12*line, 0, 9, 8);
+                ssd1306_print_char(&oled, 105, 1, esq.o[selected].sift[2] ? 0xA0 : 0xA1, false);
+                ssd1306_print_char(&oled, 117, 1, esq.o[selected].permute[2] ? 0x9E : 0x9F, false);
+                ssd1306_glyph(&oled, wave_20x20_u, 20, 20, 105, 10);
+                ssd1306_glyph(&oled, frame_20x20, 20, 20, 105, 31);
+				if(line > 1) line = 0;
+                ssd1306_corners(&oled, 104 + 12*line, 0, 9, 8);
                 
                 for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, 4 + i*7 + 1, 10, 0x7F, 40, 6, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, 4 + i*6 + 1, 10, 0x7F, 40, 5, true);
                 }
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
                 str[selected*2] = '\x82';
@@ -848,7 +889,7 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 0, "OFFSET", 0, 0);
                 ssd1306_print_char(&oled, 102, 1, esq.o[selected].sift[4] ? 0xA0 : 0xA1, false);
                 ssd1306_print_char(&oled, 114, 1, esq.o[selected].permute[4] ? 0x9E : 0x9F, false);
-
+				if(line > 1) line = 0;
                 ssd1306_corners(&oled, 101 + 12*line, 0, 9, 8);
                 for(int i = 0; i < 16; ++i)
                 {
@@ -887,7 +928,7 @@ void core1_interrupt_handler()
                 
                 ssd1306_print_char(&oled,  4, 41, esq.o[selected].sift[1] ? 0xA0 : 0xA1, false);
                 ssd1306_print_char(&oled, 16, 41, esq.o[selected].permute[1] ? 0x9E : 0x9F, false);
-
+				if(line > 3) line = 0;
                 ssd1306_corners(&oled, 3 + 12*(line/2), 30 + 10*(line%2), 9, 8);
 
                 ssd1306_print_char(&oled, xkeys[esq.o[selected].scale.root], ykeys[esq.o[selected].scale.root], 0x83, 0);
@@ -905,8 +946,6 @@ void core1_interrupt_handler()
                 {
                 	ssd1306_glyph(&oled, frame_13x24, 13, 24, 5 + 15*i, 12);
                 }
-                // ssd1306_xbm(&oled, sieve_bits, 128, 64, 0, 0);
-
                 for(int i = 0; i < esq.o[selected].gaps; ++i)
                 {
                     int l = esq.o[selected].sieve[i];
@@ -963,7 +1002,6 @@ void core1_entry()
         tight_loop_contents();
     }
 }
-
 
 
 int main()

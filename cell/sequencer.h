@@ -22,6 +22,7 @@
 
 #pragma once
 #include <stdbool.h>
+#include <string.h>
 #include "utility.h"
 #include "scale.h"
 #include "midi.h"
@@ -49,6 +50,7 @@ typedef struct
     int steps;          // Steps count
     int mode;           // Loop mode
     bool euclidean;     // Bresenham
+    bool regenerate;	// Regenerate sieve
     bool permute[5];    // [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset
     bool sift[5];		// [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset
     bool reset;         // Recount timestamp
@@ -64,7 +66,7 @@ typedef struct
 {
     automata_t automata[TRACKS];
     track_t o[TRACKS];
-    int  state;
+    int state;			// Play / Pause / Stop
 
 } sequencer;
 
@@ -90,6 +92,14 @@ void sequencer_rand (sequencer* restrict o, int track);
 void recount_all    (sequencer* restrict o, int track);
 uint32_t get_timeout(sequencer* restrict o, int track); // Time to the next step - NULL if timeline is clear
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Section setters ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void velocity_rise (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void velocity_fall (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void velocity_wave (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void velocity_rect (sequencer* restrict o, int track, int center, int range, int value, int incr);
+
+extern void (*set_section[])(sequencer* restrict, int, int, int, int, int);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sheep and Goats - Permutations /////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,8 +122,23 @@ void sift_offset(sequencer* restrict o, int track);
 
 extern void (*sift[])(sequencer* restrict, int);
 
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+inline void fit_velocity(sequencer* restrict o, int track, int position)
+{
+	if(o->o[track].data[position].velocity > 0x7F) o->o[track].data[position].velocity = 0x7F;
+	else if(o->o[track].data[position].velocity < 1) o->o[track].data[position].velocity = 1;
+}
+
+inline void fit_duration(sequencer* restrict o, int track, int position)
+{
+	if(o->o[track].data[position].value > 0xFF) o->o[track].data[position].value = 0xFF;
+    else if(o->o[track].data[position].value < 1) o->o[track].data[position].value = 1;
+}
+
+inline void fit_offset(sequencer* restrict o, int track, int position)
+{
+	if(o->o[track].data[position].offset > 0x20) o->o[track].data[position].offset = 0x20;
+    else if(o->o[track].data[position].offset < 0) o->o[track].data[position].offset = 0;
+}

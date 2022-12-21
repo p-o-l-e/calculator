@@ -161,7 +161,7 @@ void sequencer_rand(sequencer* restrict o, int track)
     for(int i = 0; i < STEPS; ++i)
     {
         o->o[track].data[i].value    = rand_in_range(1, 64);
-        o->o[track].data[i].offset   = 0;//rand_in_range(-0x7F,  0x7F);
+        o->o[track].data[i].offset   = 0;//rand_in_range(0,  0x7F);
         o->o[track].data[i].degree   = rand_in_range(0, 11);
         o->o[track].data[i].octave   = rand_in_range(0, 8);
         o->o[track].data[i].velocity = rand_in_range(0, 0x7F);
@@ -297,8 +297,7 @@ void sift_velocity(sequencer* restrict o, int track)
     for(int i = 0; i < STEPS; ++i)
     {
         o->o[track].data[i].velocity += (o->o[track].sieve[c] - o->o[track].median);
-        if(o->o[track].data[i].velocity > 0x7F) o->o[track].data[i].velocity = 0x7F;
-        else if(o->o[track].data[i].velocity < 1) o->o[track].data[i].velocity = 1;
+		fit_velocity(o, track, i);
         if(++c > 7) c = 0;
     }
 }
@@ -309,8 +308,7 @@ void sift_duration(sequencer* restrict o, int track)
     for(int i = 0; i < STEPS; ++i)
     {
         o->o[track].data[i].value += (o->o[track].sieve[c] - o->o[track].median);
-        if(o->o[track].data[i].value > 64) o->o[track].data[i].value = 64;
-        else if(o->o[track].data[i].value < 1) o->o[track].data[i].value = 1;
+     	fit_duration(o, track, i);
         if(++c > 7) c = 0;
     }
 }
@@ -321,8 +319,7 @@ void sift_offset(sequencer* restrict o, int track)
     for(int i = 0; i < STEPS; ++i)
     {
         o->o[track].data[i].offset += (o->o[track].sieve[c] - o->o[track].median);
-        if(o->o[track].data[i].offset > 64) o->o[track].data[i].offset = 64;
-        else if(o->o[track].data[i].offset < 1) o->o[track].data[i].offset = 1;
+        fit_offset(o, track, i);
         if(++c > 7) c = 0;
     }
 }
@@ -335,6 +332,70 @@ void (*sift[])(sequencer* restrict, int) =
 	sift_velocity,
 	sift_duration,
 	sift_offset
+};
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Parameter setters //////////////////////////////////////////////////////////////////////////////////////////////////////////
+void velocity_rise (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	for(int i = 0; i < range; ++i)
+	{
+		int pos = center - i;
+		if(pos < 0) pos += 16;
+		o->o[track].data[pos].velocity += (i > value ? 0 : incr);
+		fit_velocity(o, track, pos);
+	}
+}
+
+void velocity_fall (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	for(int i = 0; i < range; ++i)
+	{
+		int pos = center + i;
+		if(pos > 15) pos -= 16;
+		o->o[track].data[pos].velocity += (i > value ? 0 : incr);
+		fit_velocity(o, track, pos);
+	}		
+}
+
+void velocity_wave (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	o->o[track].data[center].velocity +=  incr;
+	fit_velocity(o, track, center);
+	for(int i = 1; i < range/2; ++i)
+	{
+		int rise = center - i;
+		if(rise < 0) rise += 16;
+		int fall = center + i;
+		if(fall > 15) fall -= 16;
+		int v = (i > value/2 ? 0 : incr);
+		o->o[track].data[rise].velocity += v;
+		o->o[track].data[fall].velocity += v;
+		fit_velocity(o, track, rise);
+		fit_velocity(o, track, fall);
+	}		
+}
+
+void velocity_rect (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	(void)value;
+	for(int i = (center - range/2); i <= (center + range/2); ++i)
+	{
+		int pos = i;
+		if(pos < 0) pos += 16;
+		else if(pos > 15) pos -= 16;
+		o->o[track].data[pos].velocity += incr;
+		fit_velocity(o, track, pos);
+	}
+}
+
+void (*set_section[])(sequencer* restrict, int, int, int, int, int) = 
+{
+	velocity_rise,
+	velocity_fall,
+	velocity_wave,
+	velocity_rect
 };
 
 
