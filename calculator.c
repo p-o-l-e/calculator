@@ -104,26 +104,51 @@ void core1_interrupt_handler()
             {
                 switch (page)
                 {
-                    case PAGE_DRTN: 
-                        esq.o[selected].data[section[0]].value += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-                        fit_duration(&esq, selected, section[0]);
+                    case PAGE_VELO:
+                    	if(esq.brush > 1)
+                    	{
+	                    	int incr = ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+	                    	if(comb > esq.brush) comb = 0;
+	                    	set_section[esq.form](&esq, selected, section[0], esq.brush, comb, incr);
+	                    	comb++;
+                    	}
+                    	else
+                    	{
+	                        esq.o[selected].data[section[0]].velocity  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+							fit_velocity(&esq, selected, section[0]);
+						}
                         repaint = true;
                     break;
 
-                    case PAGE_VELO: 
-                    	int incr = ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-                    	
-                    	if(comb > 6) comb = 0;
-                    	set_section[2](&esq, selected, section[0], 6, comb, incr);
-                    	comb++;
-                        // esq.o[selected].data[section[0]].velocity  += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
-						// fit_velocity(&esq, selected, section[0]);
+					case PAGE_DRTN: 
+						if(esq.brush > 1)
+                    	{
+	                    	int incr = ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+	                    	if(comb > esq.brush) comb = 0;
+	                    	set_section[esq.form + 3](&esq, selected, section[0], esq.brush, comb, incr);
+	                    	comb++;
+                    	}
+                    	else
+                    	{
+	                        esq.o[selected].data[section[0]].value += ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+	                        fit_duration(&esq, selected, section[0]);
+                        }
                         repaint = true;
-                    break;
+                    break;                    
 
-                    case PAGE_FFST: 
-                        esq.o[selected].data[section[0]].offset  += ((prior > current) ? -1 - 2*hold[ENCDR] : 1 + 2*hold[ENCDR]);
-                        fit_offset(&esq, selected, section[0]);
+                    case PAGE_FFST:
+						if(esq.brush > 1)
+                    	{
+	                    	int incr = ((prior > current) ? -1 - 4*hold[ENCDR] : 1 + 4*hold[ENCDR]);
+	                    	if(comb > esq.brush) comb = 0;
+	                    	set_section[esq.form + 6](&esq, selected, section[0], esq.brush, comb, incr);
+	                    	comb++;
+                    	}                    	
+                    	else
+                    	{
+	                        esq.o[selected].data[section[0]].offset  += ((prior > current) ? -1 - 2*hold[ENCDR] : 1 + 2*hold[ENCDR]);
+	                        fit_offset(&esq, selected, section[0]);
+                        }
                         repaint = true;
                     break;
 
@@ -154,7 +179,7 @@ void core1_interrupt_handler()
                     break;
                 }
             }
-            if(range == 2)
+            else if(range == 2)
             {
             	switch(page)
             	{
@@ -264,6 +289,28 @@ void core1_interrupt_handler()
                         cap = 0;
                         repaint = true;
                     }                
+                }
+				else if(hold[SHIFT])
+                {
+                    if(abs(cap)>1000)
+                    {
+ 						esq.form -= ((cap > 0)? 1 : -1);
+                       	if(esq.form > 2) esq.form = 2;
+                       	else if(esq.form < 0) esq.form = 0;
+                        cap = 0;
+                        repaint = true;
+                    }                
+                }                
+                else
+                {
+      				if(abs(cap)>1000)
+                    {
+						esq.brush -= ((cap > 0)? 1 : -1);
+                       	if(esq.brush > 0xF) esq.brush = 0xF;
+                       	else if(esq.brush < 1) esq.brush = 1;
+                        cap = 0;
+                        repaint = true;
+                    }                           	
                 }
             break;
 
@@ -670,31 +717,31 @@ void core1_interrupt_handler()
                             }
                         }
                         else if(hold[SHIFT]) esq.o[selected].trigger ^= (1<<(ccol + 8)); 
-                        hold_matrix[ccol + 8] = true; 
-                    } 
+                        hold_matrix[ccol + 8] = true;
+                    }
                     last = MROW2;
                 break;
 
-                case MROW3: 
-                    if(!hold_matrix[ccol + 12]) 
-                    { 
-                        if(hold[SHIFT]) esq.o[selected].trigger ^= (1<<(ccol + 12)); 
-                        hold_matrix[ccol + 12] = true; 
-                    } 
+                case MROW3:
+                    if(!hold_matrix[ccol + 12])
+                    {
+                        if(hold[SHIFT]) esq.o[selected].trigger ^= (1<<(ccol + 12));
+                        hold_matrix[ccol + 12] = true;
+                    }
                     last = MROW3;
                 break;
 
-                default: 
+                default:
                 break;
             }
             if(page >= PAGES) page = 0;
             else if(page < 0) page = PAGES - 1;
         }
-        else 
+        else
         {
             if(imux < 4) hold_matrix[imux * 4 + ccol] = false;
-            if(imux == SHIFT) 
-            { 
+            if(imux == SHIFT)
+            {
                 if(last == SHIFT) tap_armed = true;
                 hold[SHIFT] = false;
             }
@@ -808,24 +855,42 @@ void core1_interrupt_handler()
                 refresh = true;
             break;
             
-            case PAGE_DRTN:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
-                ssd1306_print_char(&oled, 102, 1, esq.o[selected].sift[3] ? 0xA0 : 0xA1, false);
-                ssd1306_print_char(&oled, 114, 1, esq.o[selected].permute[3] ? 0x9E : 0x9F, false);
-                if(line > 1) line = 0;
-                ssd1306_corners(&oled, 101 + 12*line, 0, 9, 8);
-                
-                for(int i = 0; i < 16; ++i)
-                {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].value, i*8 + 1, 10, 0xFF, 40, 6, true);
-                }
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
+  			case PAGE_NOTE:
+                  ssd1306_buffer_fill_pixels(&oled, BLACK);
+                  ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
+                  ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
+                  for(int i = 0; i < 12; ++i)
+                  {
+                      if(esq.o[selected].scale.data & (0x800 >> i))
+                      ssd1306_print_char(&oled, xkeys[i], ykeys[i], 0x82, 0);
+                      else
+                      ssd1306_print_char(&oled, xkeys[i], ykeys[i], 0x81, 0);
+                  }
+                  for(int i = 0; i < STEPS; ++i)
+                  {
+                      ssd1306_print_string(&oled, 29 + 6*i,  23, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
+                      ssd1306_print_char(&oled, 29 + 6*i, 41, 0x90 + esq.o[selected].data[i].octave, false);
+                      if((esq.o[selected].trigger>>i)&1) 
+                      {
+                      	ssd1306_line(&oled, 29 + 6*i, 50, 5, false);
+                      	ssd1306_line(&oled, 29 + 6*i, 51, 5, false);
+                      }
+                  }
+                  ssd1306_print_char(&oled,  4, 31, esq.o[selected].sift[0] ? 0xA0 : 0xA1, false);
+                  ssd1306_print_char(&oled, 16, 31, esq.o[selected].permute[0] ? 0x9E : 0x9F, false);
+                  
+                  ssd1306_print_char(&oled,  4, 41, esq.o[selected].sift[1] ? 0xA0 : 0xA1, false);
+                  ssd1306_print_char(&oled, 16, 41, esq.o[selected].permute[1] ? 0x9E : 0x9F, false);
+  				if(line > 3) line = 0;
+                  ssd1306_corners(&oled, 3 + 12*(line/2), 30 + 10*(line%2), 9, 8);
+  
+                  ssd1306_print_char(&oled, xkeys[esq.o[selected].scale.root], ykeys[esq.o[selected].scale.root], 0x83, 0);
+                  sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                  str[selected*2] = '\x82';
+                  ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                  repaint = false;
+                  refresh = true;
+          	break;
 
             case PAGE_AUTO:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
@@ -868,14 +933,29 @@ void core1_interrupt_handler()
                 ssd1306_print_string(&oled, 4, 0, "VELOCITY", 0, 0);
                 ssd1306_print_char(&oled, 105, 1, esq.o[selected].sift[2] ? 0xA0 : 0xA1, false);
                 ssd1306_print_char(&oled, 117, 1, esq.o[selected].permute[2] ? 0x9E : 0x9F, false);
-                ssd1306_glyph(&oled, wave_20x20_u, 20, 20, 105, 10);
+                switch(esq.form)
+                {
+                	case 0:
+     					ssd1306_glyph(&oled, rise_20x20_u, 20, 20, 105, 10);
+                		break;
+					case 1:
+						ssd1306_glyph(&oled, fall_20x20_u, 20, 20, 105, 10);
+						break;
+					case 2:
+				        ssd1306_glyph(&oled, wave_20x20_u, 20, 20, 105, 10);
+				        break;
+					default:
+						break;
+                }
                 ssd1306_glyph(&oled, frame_20x20, 20, 20, 105, 31);
+                sprintf(str, "%x", esq.brush);
+                ssd1306_print_string(&oled, 111, 38, str, 0, 0);
 				if(line > 1) line = 0;
                 ssd1306_corners(&oled, 104 + 12*line, 0, 9, 8);
                 
                 for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, 4 + i*6 + 1, 10, 0x7F, 40, 5, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].velocity, 5 + i*6, 10, 0x7F, 40, 5, true);
                 }
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
                 str[selected*2] = '\x82';
@@ -883,55 +963,67 @@ void core1_interrupt_handler()
                 repaint = false;
                 refresh = true;
             break;
-
+            
+			case PAGE_DRTN:
+                ssd1306_buffer_fill_pixels(&oled, BLACK);
+                ssd1306_print_string(&oled, 4, 0, "DURATION", 0, 0);
+                ssd1306_print_char(&oled, 105, 1, esq.o[selected].sift[3] ? 0xA0 : 0xA1, false);
+                ssd1306_print_char(&oled, 117, 1, esq.o[selected].permute[3] ? 0x9E : 0x9F, false);
+                switch(esq.form)
+                {
+                	case 0:
+     					ssd1306_glyph(&oled, rise_20x20_u, 20, 20, 105, 10);
+                		break;
+					case 1:
+						ssd1306_glyph(&oled, fall_20x20_u, 20, 20, 105, 10);
+						break;
+					case 2:
+				        ssd1306_glyph(&oled, wave_20x20_u, 20, 20, 105, 10);
+				        break;
+					default:
+						break;
+                }
+                ssd1306_glyph(&oled, frame_20x20, 20, 20, 105, 31);
+                if(line > 1) line = 0;
+                ssd1306_corners(&oled, 104 + 12*line, 0, 9, 8);
+                
+                for(int i = 0; i < 16; ++i)
+                {
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].value, 5 + i*6, 10, 0xFF, 40, 5, true);
+                }
+                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
+                str[selected*2] = '\x82';
+                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
+                repaint = false;
+                refresh = true;
+            break;
+            
             case PAGE_FFST:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4, 0, "OFFSET", 0, 0);
-                ssd1306_print_char(&oled, 102, 1, esq.o[selected].sift[4] ? 0xA0 : 0xA1, false);
-                ssd1306_print_char(&oled, 114, 1, esq.o[selected].permute[4] ? 0x9E : 0x9F, false);
+                ssd1306_print_char(&oled, 105, 1, esq.o[selected].sift[4] ? 0xA0 : 0xA1, false);
+                ssd1306_print_char(&oled, 117, 1, esq.o[selected].permute[4] ? 0x9E : 0x9F, false);
+				switch(esq.form)
+                {
+                	case 0:
+     					ssd1306_glyph(&oled, rise_20x20_u, 20, 20, 105, 10);
+                		break;
+					case 1:
+						ssd1306_glyph(&oled, fall_20x20_u, 20, 20, 105, 10);
+						break;
+					case 2:
+				        ssd1306_glyph(&oled, wave_20x20_u, 20, 20, 105, 10);
+				        break;
+					default:
+						break;
+                }
+				ssd1306_glyph(&oled, frame_20x20, 20, 20, 105, 31);
 				if(line > 1) line = 0;
-                ssd1306_corners(&oled, 101 + 12*line, 0, 9, 8);
+                ssd1306_corners(&oled, 104 + 12*line, 0, 9, 8);
                 for(int i = 0; i < 16; ++i)
                 {
-                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].offset, i*8 + 1, 10, 0x20, 40, 6, true);
+                    ssd1306_progress_bar(&oled, esq.o[selected].data[i].offset, 5 + i*6, 10, 0x20, 40, 5, true);
                 }
-                sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
-                str[selected*2] = '\x82';
-                ssd1306_print_string(&oled, 4, 56, str, 0, 0);
-                repaint = false;
-                refresh = true;
-            break;
-
-            case PAGE_NOTE:
-                ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled,  4,  0, "ROOT", 0, 0);
-                ssd1306_print_string(&oled, 40,  0, chromatic_lr[esq.o[selected].scale.root], 0, 0);
-                for(int i = 0; i < 12; ++i)
-                {
-                    if(esq.o[selected].scale.data & (0x800 >> i))
-                    ssd1306_print_char(&oled, xkeys[i], ykeys[i], 0x82, 0);
-                    else
-                    ssd1306_print_char(&oled, xkeys[i], ykeys[i], 0x81, 0);
-                }
-                for(int i = 0; i < STEPS; ++i)
-                {
-                    ssd1306_print_string(&oled, 29 + 6*i,  23, chromatic[esq.o[selected].data[i].chroma%12], 0, true);
-                    ssd1306_print_char(&oled, 29 + 6*i, 41, 0x90 + esq.o[selected].data[i].octave, false);
-                    if((esq.o[selected].trigger>>i)&1) 
-                    {
-                    	ssd1306_line(&oled, 29 + 6*i, 50, 5, false);
-                    	ssd1306_line(&oled, 29 + 6*i, 51, 5, false);
-                    }
-                }
-                ssd1306_print_char(&oled,  4, 31, esq.o[selected].sift[0] ? 0xA0 : 0xA1, false);
-                ssd1306_print_char(&oled, 16, 31, esq.o[selected].permute[0] ? 0x9E : 0x9F, false);
-                
-                ssd1306_print_char(&oled,  4, 41, esq.o[selected].sift[1] ? 0xA0 : 0xA1, false);
-                ssd1306_print_char(&oled, 16, 41, esq.o[selected].permute[1] ? 0x9E : 0x9F, false);
-				if(line > 3) line = 0;
-                ssd1306_corners(&oled, 3 + 12*(line/2), 30 + 10*(line%2), 9, 8);
-
-                ssd1306_print_char(&oled, xkeys[esq.o[selected].scale.root], ykeys[esq.o[selected].scale.root], 0x83, 0);
                 sprintf(str, "\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81\x84\x81");
                 str[selected*2] = '\x82';
                 ssd1306_print_string(&oled, 4, 56, str, 0, 0);
@@ -942,6 +1034,7 @@ void core1_interrupt_handler()
             case PAGE_SIEV:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
                 ssd1306_print_string(&oled, 4,   0, "SIEVE", 0, 0);
+                ssd1306_print_char(&oled, 114, 1, esq.o[selected].permute[5] ? 0x9E : 0x9F, false);
                 for(int i = 0; i < 8; ++i)
                 {
                 	ssd1306_glyph(&oled, frame_13x24, 13, 24, 5 + 15*i, 12);
@@ -961,7 +1054,7 @@ void core1_interrupt_handler()
             
             case PAGE_SAVE:
                 ssd1306_buffer_fill_pixels(&oled, BLACK);
-                ssd1306_print_string(&oled, 0,   0, "SAVE", 0, 0);
+                ssd1306_print_string(&oled, 0, 0, "SAVE", 0, 0);
                 repaint = false;
                 refresh = true;
             break;

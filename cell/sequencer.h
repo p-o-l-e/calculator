@@ -51,7 +51,7 @@ typedef struct
     int mode;           // Loop mode
     bool euclidean;     // Bresenham
     bool regenerate;	// Regenerate sieve
-    bool permute[5];    // [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset
+    bool permute[6];    // [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset [5]Sieve
     bool sift[5];		// [0]Degree [1]Octave [2]Velocity [3]Duration [4]Offset
     bool reset;         // Recount timestamp
     bool freerun;       // Sync
@@ -67,6 +67,8 @@ typedef struct
     automata_t automata[TRACKS];
     track_t o[TRACKS];
     int state;			// Play / Pause / Stop
+    int brush; 			// Brush width
+    int form;			// Brush type
 
 } sequencer;
 
@@ -98,27 +100,33 @@ void velocity_rise (sequencer* restrict o, int track, int center, int range, int
 void velocity_fall (sequencer* restrict o, int track, int center, int range, int value, int incr);
 void velocity_wave (sequencer* restrict o, int track, int center, int range, int value, int incr);
 void velocity_rect (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void duration_rise (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void duration_fall (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void duration_wave (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void offset_rise (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void offset_fall (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void offset_wave (sequencer* restrict o, int track, int center, int range, int value, int incr);
 
 extern void (*set_section[])(sequencer* restrict, int, int, int, int, int);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sheep and Goats - Permutations /////////////////////////////////////////////////////////////////////////////////////////////
-void sag_degree(sequencer* restrict o, int track, uint16_t data);   
-void sag_octave(sequencer* restrict o, int track, uint16_t data);
-void sag_velocity(sequencer* restrict o, int track, uint16_t data);
-void sag_duration(sequencer* restrict o, int track, uint16_t data);
-void sag_offset(sequencer* restrict o, int track, uint16_t data);
+void sag_degree		(sequencer* restrict o, int track, uint16_t data);   
+void sag_octave		(sequencer* restrict o, int track, uint16_t data);
+void sag_velocity	(sequencer* restrict o, int track, uint16_t data);
+void sag_duration	(sequencer* restrict o, int track, uint16_t data);
+void sag_offset		(sequencer* restrict o, int track, uint16_t data);
 
 extern void (*mutate[])(sequencer* restrict, int, uint16_t); 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sieve //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void regenerate_sieve(sequencer* restrict o, int track, uint16_t data);
-void sift_degree(sequencer* restrict o, int track);
-void sift_octave(sequencer* restrict o, int track);
-void sift_velocity(sequencer* restrict o, int track);
-void sift_duration(sequencer* restrict o, int track);
-void sift_offset(sequencer* restrict o, int track);
+void sift_degree	(sequencer* restrict o, int track);
+void sift_octave	(sequencer* restrict o, int track);
+void sift_velocity	(sequencer* restrict o, int track);
+void sift_duration	(sequencer* restrict o, int track);
+void sift_offset	(sequencer* restrict o, int track);
 
 extern void (*sift[])(sequencer* restrict, int);
 

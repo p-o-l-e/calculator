@@ -49,7 +49,6 @@ void track_init(track_t* restrict o)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Loops //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void loop_forward(track_t* restrict o)
 {
     ++o->current;
@@ -142,6 +141,7 @@ void reset_timestamp(sequencer* restrict o, int track, int bpm)
 void sequencer_init(sequencer* restrict o, int bpm)
 {
     o->state = STOP;
+    o->brush = 1;
     for(int i = 0; i < TRACKS; ++i)
     {
         track_init(&o->o[i]);
@@ -337,6 +337,7 @@ void (*sift[])(sequencer* restrict, int) =
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Parameter setters //////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Velocity ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void velocity_rise (sequencer* restrict o, int track, int center, int range, int value, int incr)
 {
 	for(int i = 0; i < range; ++i)
@@ -356,7 +357,7 @@ void velocity_fall (sequencer* restrict o, int track, int center, int range, int
 		if(pos > 15) pos -= 16;
 		o->o[track].data[pos].velocity += (i > value ? 0 : incr);
 		fit_velocity(o, track, pos);
-	}		
+	}
 }
 
 void velocity_wave (sequencer* restrict o, int track, int center, int range, int value, int incr)
@@ -374,8 +375,93 @@ void velocity_wave (sequencer* restrict o, int track, int center, int range, int
 		o->o[track].data[fall].velocity += v;
 		fit_velocity(o, track, rise);
 		fit_velocity(o, track, fall);
-	}		
+	}
 }
+
+// Duration ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void duration_rise (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	for(int i = 0; i < range; ++i)
+	{
+		int pos = center - i;
+		if(pos < 0) pos += 16;
+		o->o[track].data[pos].value += (i > value ? 0 : incr);
+		fit_duration(o, track, pos);
+	}
+}
+
+void duration_fall (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	for(int i = 0; i < range; ++i)
+	{
+		int pos = center + i;
+		if(pos > 15) pos -= 16;
+		o->o[track].data[pos].value += (i > value ? 0 : incr);
+		fit_duration(o, track, pos);
+	}
+}
+
+void duration_wave (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	o->o[track].data[center].value +=  incr;
+	fit_duration(o, track, center);
+	for(int i = 1; i < range/2; ++i)
+	{
+		int rise = center - i;
+		if(rise < 0) rise += 16;
+		int fall = center + i;
+		if(fall > 15) fall -= 16;
+		int v = (i > value/2 ? 0 : incr);
+		o->o[track].data[rise].value += v;
+		o->o[track].data[fall].value += v;
+		fit_duration(o, track, rise);
+		fit_duration(o, track, fall);
+	}
+}
+
+// Offset /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void offset_rise (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	for(int i = 0; i < range; ++i)
+	{
+		int pos = center - i;
+		if(pos < 0) pos += 16;
+		o->o[track].data[pos].offset += (i > value ? 0 : incr);
+		fit_offset(o, track, pos);
+	}
+}
+
+void offset_fall (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	for(int i = 0; i < range; ++i)
+	{
+		int pos = center + i;
+		if(pos > 15) pos -= 16;
+		o->o[track].data[pos].value += (i > value ? 0 : incr);
+		fit_offset(o, track, pos);
+	}
+}
+
+void offset_wave (sequencer* restrict o, int track, int center, int range, int value, int incr)
+{
+	o->o[track].data[center].offset +=  incr;
+	fit_offset(o, track, center);
+	for(int i = 1; i < range/2; ++i)
+	{
+		int rise = center - i;
+		if(rise < 0) rise += 16;
+		int fall = center + i;
+		if(fall > 15) fall -= 16;
+		int v = (i > value/2 ? 0 : incr);
+		o->o[track].data[rise].offset += v;
+		o->o[track].data[fall].offset += v;
+		fit_offset(o, track, rise);
+		fit_offset(o, track, fall);
+	}
+}
+
 
 void velocity_rect (sequencer* restrict o, int track, int center, int range, int value, int incr)
 {
@@ -395,7 +481,13 @@ void (*set_section[])(sequencer* restrict, int, int, int, int, int) =
 	velocity_rise,
 	velocity_fall,
 	velocity_wave,
-	velocity_rect
+	duration_rise,
+	duration_fall,
+	duration_wave,
+	offset_rise,
+	offset_fall,
+	offset_wave
+
 };
 
 
