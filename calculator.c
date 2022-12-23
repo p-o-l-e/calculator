@@ -984,6 +984,8 @@ void core1_interrupt_handler()
 						break;
                 }
                 ssd1306_glyph(&oled, frame_20x20, 20, 20, 105, 31);
+				sprintf(str, "%x", esq.brush);
+                ssd1306_print_string(&oled, 111, 38, str, 0, 0);                
                 if(line > 1) line = 0;
                 ssd1306_corners(&oled, 104 + 12*line, 0, 9, 8);
                 
@@ -1018,6 +1020,8 @@ void core1_interrupt_handler()
 						break;
                 }
 				ssd1306_glyph(&oled, frame_20x20, 20, 20, 105, 31);
+				sprintf(str, "%x", esq.brush);
+                ssd1306_print_string(&oled, 111, 38, str, 0, 0);
 				if(line > 1) line = 0;
                 ssd1306_corners(&oled, 104 + 12*line, 0, 9, 8);
                 for(int i = 0; i < 16; ++i)
