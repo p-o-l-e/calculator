@@ -103,9 +103,9 @@ void velocity_rect (sequencer* restrict o, int track, int center, int range, int
 void duration_rise (sequencer* restrict o, int track, int center, int range, int value, int incr);
 void duration_fall (sequencer* restrict o, int track, int center, int range, int value, int incr);
 void duration_wave (sequencer* restrict o, int track, int center, int range, int value, int incr);
-void offset_rise (sequencer* restrict o, int track, int center, int range, int value, int incr);
-void offset_fall (sequencer* restrict o, int track, int center, int range, int value, int incr);
-void offset_wave (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void offset_rise   (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void offset_fall   (sequencer* restrict o, int track, int center, int range, int value, int incr);
+void offset_wave   (sequencer* restrict o, int track, int center, int range, int value, int incr);
 
 extern void (*set_section[])(sequencer* restrict, int, int, int, int, int);
 
@@ -116,6 +116,7 @@ void sag_octave		(sequencer* restrict o, int track, uint16_t data);
 void sag_velocity	(sequencer* restrict o, int track, uint16_t data);
 void sag_duration	(sequencer* restrict o, int track, uint16_t data);
 void sag_offset		(sequencer* restrict o, int track, uint16_t data);
+void sag_sieve		(sequencer* restrict o, int track, uint16_t data);
 
 extern void (*mutate[])(sequencer* restrict, int, uint16_t); 
 

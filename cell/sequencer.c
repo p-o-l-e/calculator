@@ -244,13 +244,28 @@ void sag_offset(sequencer* restrict o, int track, uint16_t data)
     }
 }
 
+void sag_sieve(sequencer* restrict o, int track, uint16_t data)
+{
+    int p = 7;
+    uint16_t f = xor16to8(data);
+    for(int i = 7; i >= 0; --i)
+    {
+        if((f>>i)&1)
+        {
+            swap(&o->o[track].sieve[i], &o->o[track].sieve[p]);
+            --p;
+        }
+    }
+}
+
 void (*mutate[])(sequencer* restrict, int, uint16_t) = 
 {
     sag_degree,
     sag_octave,
     sag_velocity,
     sag_duration,
-    sag_offset
+    sag_offset,
+    sag_sieve
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

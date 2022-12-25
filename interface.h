@@ -11,4 +11,4 @@
 #define PAGE_LOAD 8
 #define PAGE__LOG 9
 
-#define PAGES     7
+#define PAGES     9

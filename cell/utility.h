@@ -71,5 +71,10 @@ inline int xor16to4(uint16_t x)
     return r & 0xF;
 }
 
+inline uint16_t xor16to8(uint16_t x)
+{
+    return (x ^ (x >> 8)) & 0xFF;
+}
+
 int sieve(int* period, int steps, unsigned data);
 uint16_t bjorklund(int steps, int pulses);
